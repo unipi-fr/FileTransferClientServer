@@ -1,5 +1,4 @@
-#include <iostream>
-using namespace std;
+#include "my_crypto_lib.h"
 
  int main(){
 
