@@ -1,4 +1,4 @@
-LIBS = my_crypto_lib.cpp
+LIBS = my_crypto_lib.cpp socket_lib.cpp
 
 all: client_ftp server_ftp
 
