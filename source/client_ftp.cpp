@@ -14,7 +14,7 @@ struct sockaddr_in serverStructAddr;
 int socketTCP;
 
 
-char output[100];
+unsigned char output[100];
 
 void serverStructInit(){
     /*creazione indirizzo*/
@@ -84,7 +84,25 @@ int main(int num_args, char* args[]){
     readFile(args[3]);
     cout<<"[FILE CONTENT]"<<output<<endl;
     
-    sendTCP(socketTCP, output, 100);
+    int hashSize;
+    
+    unsigned char *hashSign = sign(output, 100, hashSize);
+    cout<<"[HASH SIGN]"<<hashSign<<endl;    
+ 
+    unsigned char *plainText = (unsigned char*)malloc(100 + hashSize);
+    
+    memcpy(plainText, hashSign, hashSize);
+    memcpy(plainText+hashSize, output, 100);
+    
+    cout<<"[PlainText] "<<plainText<<endl;
+    
+    unsigned char *cipherText = (unsigned char*)malloc(100 + hashSize + 16);
+    
+    int ctLen = encrypt(plainText, 100 + hashSize, NULL, cipherText);
+    
+    cout<<"[cipherText] "<<cipherText<<endl;
+    
+    sendTCP(socketTCP, cipherText, ctLen);
     
     return 0;
 }

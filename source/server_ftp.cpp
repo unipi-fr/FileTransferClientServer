@@ -99,14 +99,36 @@ void clientDisconected(int socket){
 
 void manageConnection(int socketToManage){
 	int numberOfBytes;
-	char* buffer;
-	numberOfBytes = recvTCP(socketToManage,(void**)&buffer);
+    unsigned char* buffer;
+    numberOfBytes = recvTCP(socketToManage,(void**)&buffer);
     if(numberOfBytes == 0){
-		clientDisconected(socketToManage);
-		return;
-	}
-    cout<<"[FILE CONTENT]"<<buffer<<endl;
-    writeFile(buffer);
+        clientDisconected(socketToManage);
+        return;
+    }
+    
+    cout<<"[chiperText]"<<buffer<<endl;
+    
+    unsigned char *decryptedText = (unsigned char*)malloc(numberOfBytes);
+    int decryptLen = decrypt(buffer, numberOfBytes, NULL, decryptedText);
+    
+    //declaring the hash function we want to use
+    const EVP_MD* md = EVP_sha256();
+    int hashSize; //size of the digest
+    hashSize = EVP_MD_size(md);
+    
+    unsigned char *msg = decryptedText + hashSize;
+    unsigned char *hash = (unsigned char*) malloc(hashSize);
+    memcpy(decryptedText, hash, hashSize);
+    
+    if(check_hash(msg, decryptLen - hashSize, hash)){
+        cout<<"firma Valida"<<endl;
+    } else {
+        cout<<"Errore nella Firma"<<endl;
+        return;
+    }
+    
+    cout<<"[FILE CONTENT]"<<msg<<endl;
+    writeFile((char*)msg);
 }
 int main(int num_args, char* args[]){
 	int i;
