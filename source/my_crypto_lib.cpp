@@ -85,11 +85,5 @@ bool check_hash(unsigned char *inBuf, int bufLen, unsigned char *hash){
     int hashSize;
     calculatedHash = sign(inBuf,bufLen,hashSize);
     
-    //Dichiariamo la funzione che vogliamo
-    const EVP_MD* md = EVP_sha256();
-    
-    int hashSize; //Dimensione del digest
-    hashSize = EVP_MD_size(md);
-    
     return memcmp(hash, calculatedHash, hashSize) == 0;
 }
