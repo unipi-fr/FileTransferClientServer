@@ -1,4 +1,4 @@
-#include "my_crypto_lib.h"
+#include "SecureMessageCreator.h"
 #include "socket_lib.h"
 #include <iostream>
 #include <fstream>
@@ -61,7 +61,7 @@ void readFile(char* fileName){
     
     readFile.close();
 }
-
+SecureMessageCreator* msgCreator;
 
 
 int main(int num_args, char* args[]){
@@ -77,32 +77,24 @@ int main(int num_args, char* args[]){
         cout<<"Closing program."<<endl<<endl;
         return -1;
     }
+
+    msgCreator = new SecureMessageCreator();
     
     globalInit(args);
     /*FINE LETTURA PARAMETRI*/
     serverTCPconnection();
-    readFile(args[3]);
-    cout<<"[FILE CONTENT]"<<output<<endl;
+    for(int i=0; i< 100000000;++i){
+        readFile(args[3]);
+        cout<<"[FILE CONTENT]"<<output<<endl;
+        unsigned char* secureMessage;
+        int hashSize;
+        
+        int msgSize = msgCreator->EncryptAndSignMessage(output,100,&secureMessage);
     
-    int hashSize;
-    
-    unsigned char *hashSign = sign(output, 100, hashSize);
-    cout<<"[HASH SIGN]"<<hashSign<<endl;    
- 
-    unsigned char *plainText = (unsigned char*)malloc(100 + hashSize);
-    
-    memcpy(plainText, hashSign, hashSize);
-    memcpy(plainText+hashSize, output, 100);
-    
-    cout<<"[PlainText] "<<plainText<<endl;
-    
-    unsigned char *cipherText = (unsigned char*)malloc(100 + hashSize + 16);
-    
-    int ctLen = encrypt(plainText, 100 + hashSize, NULL, cipherText);
-    
-    cout<<"[cipherText] "<<cipherText<<endl;
-    
-    sendTCP(socketTCP, cipherText, ctLen);
+        cout<<"[secureMessage] "<<secureMessage<<endl;
+        
+        sendTCP(socketTCP, secureMessage, msgSize);
+    }
     
     return 0;
 }

@@ -1,16 +1,19 @@
-LIBS = my_crypto_lib.h socket_lib.h
-OBJ = my_crypto_lib.o socket_lib.o
-
+COMMON_LIBS = SecureMessageCreator.h socket_lib.h 
+COMMON_OBJ = SecureMessageCreator.o socket_lib.o
+CLIENT_LIBS = $(COMMON_LIBS)
+CLIENT_OBJ = $(COMMON_OBJ)
+SERVER_LIBS = $(COMMON_LIBS) ServerTCP.h 
+SERVER_OBJ = $(COMMON_OBJ) ServerTCP.o 
 all: client_ftp server_ftp
+	rm *.o
 
-client_ftp: $(OBJ)
-	g++ -o client_ftp client_ftp.cpp $(OBJ) $(LIBS) -lcrypto
+client_ftp: $(CLIENT_OBJ) 
+	g++ -o client_ftp client_ftp.cpp $(CLIENT_LIBS) $(CLIENT_OBJ) -lcrypto
 	
-server_ftp: $(OBJ)
-	g++ -o server_ftp server_ftp.cpp $(OBJ) $(LIBS) -lcrypto
-
+server_ftp: $(SERVER_OBJ)
+	g++ -o server_ftp server_ftp.cpp $(SERVER_LIBS) $(SERVER_OBJ) -lcrypto
 .c.o:
-	g++ -c $< -lcrypto
+	g++ -c $<
 
 clean:
-	rm client_ftp server_ftp *.o
+	rm client_ftp server_ftp
