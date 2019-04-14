@@ -116,7 +116,7 @@ int SecureMessageCreator::EncryptAndSignMessage(unsigned char* plainText, int pl
 
   int secureTextLen = encrypt(messageToEncrypt, messageToEncryptLen, NULL, *secureText);
 
-  cout<<"[secureText]"<<secureText<<endl;
+  cout<<"[secureText]"<<(*secureText)<<endl;
 
   free(messageToEncrypt);
   free(hashSign);

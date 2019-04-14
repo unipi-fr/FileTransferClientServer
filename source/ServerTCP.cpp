@@ -46,6 +46,10 @@ int ServerTCP::recvMsg(int socketRecvFrom,void** buffer){
     return numberOfBytes;
 }
 
+void ServerTCP::sendMsg(int socketRecvFrom,void *buffer, size_t bufferSize){
+    sendTCP(socketRecvFrom, buffer, bufferSize);
+}
+
 void ServerTCP::localAddrStructInit(){
     _localAddrStruct.sin_family = AF_INET;
     _localAddrStruct.sin_addr.s_addr = INADDR_ANY;

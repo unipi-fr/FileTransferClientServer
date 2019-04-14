@@ -19,30 +19,40 @@ void writeFile (char *input){
         cout << "Unable to open file"<<endl;
 }
 
-void manageConnection(int socketToManage){
-		int numberOfBytes;
-		unsigned char* buffer;
-		numberOfBytes = server->recvMsg(socketToManage, (void**) &buffer);
-		if(numberOfBytes == 0){
-			return;
-		}
-		unsigned char* message;
-		int messageSize;
-		
-		cout<<"[secureMessage]"<<buffer<<endl;
-		bool check = msgCreator->DecryptAndCheckSign(buffer,numberOfBytes,&message,messageSize);
-		cout<<"[message]"<<message<<endl;
-		if (check)
-		{
-			/* code */
-		}
-
-		
-		cout<<"[FILE CONTENT]"<<message<<endl;
-		writeFile((char*)message);
-		free(buffer);
-		free(message);
+void uploadCommand(int socketToManage){
+	int numberOfBytes;
+	unsigned char* buffer;
+	numberOfBytes = server->recvMsg(socketToManage, (void**) &buffer);
+	if(numberOfBytes == 0){
+		return;
 	}
+	unsigned char* message;
+	int messageSize;
+	cout<<"["<<socketToManage<<"]";
+	cout<<"[secureMessage]"<<buffer<<endl;
+	bool check = msgCreator->DecryptAndCheckSign(buffer,numberOfBytes,&message,messageSize);
+	cout<<"["<<socketToManage<<"]";
+	cout<<"[message]"<<message<<endl;
+	if (!check)
+	{
+		cout<<"["<<socketToManage<<"]";
+		cout<<"[ERROR] not valid Hash"<<endl;
+	}
+	cout<<"["<<socketToManage<<"]";
+	cout<<"[INFO] hash OK!"<<endl;
+
+	cout<<"["<<socketToManage<<"]";
+	cout<<"[FILE CONTENT]"<<message<<endl;
+	writeFile((char*)message);
+	free(buffer);
+	free(message);
+}
+
+void manageConnection(int socketToManage){
+		uploadCommand(socketToManage);
+}
+
+
 
 int main(int num_args, char* args[]){	
 	if(num_args != 2){

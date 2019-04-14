@@ -1,13 +1,6 @@
 #include "socket_lib.h"
 #include <time.h> //per la select()
 class ServerTCP{
-public: 
-	ServerTCP(unsigned short portNumber);
-//ritorna -1 se arriva una nuova connessione e l'accetta
-//altrimenti ritorna il numero del socket da gestire
-	int waitForRequest();
-	int recvMsg(int socketRecvFrom,void** buffer);
-
 private:
 	unsigned short _portNumber;	
 	
@@ -25,4 +18,11 @@ private:
 	void listenerSocketInit();
 	void acceptNewConnecction();
 	void clientDisconected(int socket);
+public: 
+	ServerTCP(unsigned short portNumber);
+//ritorna -1 se arriva una nuova connessione e l'accetta
+//altrimenti ritorna il numero del socket da gestire
+	int waitForRequest();
+	int recvMsg(int socketRecvFrom,void** buffer);
+	void sendMsg(int socketRecvFrom,void *buffer, size_t bufferSize);
 };
