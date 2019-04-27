@@ -103,7 +103,7 @@ int main(int num_args, char* args[]){
 	int activeSocket;
 	for(;;){
 		cout<<"[INFO] Wainting for the client."<<endl;
-		activeSocket = server->acceptNewConnecction(); //se è una nuova connessione l'accetta e ritorna -1, altrimenti restituisce il socket da gestire
+		activeSocket = server->acceptNewConnecction();
 		if(activeSocket>=0){
 			cout<<"[INFO] New client connected."<<endl;
 		}

@@ -11,6 +11,7 @@ private:
 
 	void localAddrStructInit();
 	void listenerSocketInit();
+	void listenerSocketClose();
 	void clientDisconnected();
 public: 
 	ServerTCP(unsigned short portNumber);

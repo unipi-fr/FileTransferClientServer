@@ -25,6 +25,10 @@ void ServerTCP::listenerSocketInit(){
     }
 }
 
+void ServerTCP::listenerSocketClose(){
+    close(_listenerSocket);
+}
+
 void ServerTCP::clientDisconnected(){
     close(_comunicationSocket);
     _comunicationSocket = -1;
@@ -34,16 +38,18 @@ ServerTCP::ServerTCP(unsigned short portNumber){
     _portNumber = portNumber;
     _comunicationSocket = -1;
     localAddrStructInit();
-    listenerSocketInit();
     cout<<"[INFO]Server successfull listening on port "<<_portNumber<<endl;
 }
 
 int ServerTCP::acceptNewConnecction(){
+    listenerSocketInit();
     socklen_t len = sizeof(_clientAddrStruct);
     memset(&_clientAddrStruct,0,len);
     _comunicationSocket = accept(_listenerSocket, (struct sockaddr*) &_clientAddrStruct, &len);
     if(_comunicationSocket<0){
         cout<<"[ERROR] not possible accept new connection."<<endl;
+    }else{
+        listenerSocketClose();
     }
     return _comunicationSocket;
 }
