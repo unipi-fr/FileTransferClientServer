@@ -1,56 +1,99 @@
 #include "SecureMessageCreator.h"
 #include "ClientTCP.h"
-#include "string.h"
 #include <iostream>
 #include <fstream>
+#include <sstream>
 using namespace std;
 
-unsigned char output[100];
+unsigned char output[4096];
 ClientTCP* client;
 
-void readFile(char* fileName){
-    memset(output,0,100);
-    ifstream readFile;
-    readFile.open(fileName);
+SecureMessageCreator* msgCreator;
+void uploadApart(string buffer){
+    unsigned char* secureMessage;
+    size_t msgSize = msgCreator->EncryptAndSignMessage((unsigned char*)buffer.c_str(),buffer.length(),&secureMessage);
+    client->sendMsg(secureMessage,msgSize);
 
+}
+void sendUploadCommand(string file, size_t fileSize){
+    unsigned char* secureMessage;
+    stringstream ss;
+    ss <<"u "<<file <<" "<<fileSize;
+    string msg = ss.str();
+    size_t msgSize = msgCreator->EncryptAndSignMessage((unsigned char*)msg.c_str(),msg.length(),&secureMessage);
+    client->sendMsg(secureMessage,msgSize);
+}
+void sendFile(string file, size_t fileSize){
+    ifstream readFile;
+    string reader;
+    const char* fileName= file.c_str();
+    readFile.open(fileName, ios::in|ios::binary);
+
+    cout<<"[DEBUG - fileName / fileSize]"<<fileName<<" / "<<fileSize<<endl;
+    size_t whenPrintCharacter = fileSize / 80;
+    size_t partReaded = 0;
+    size_t fileSended = 0;
+
+    size_t pos = 0;
     if (readFile.is_open()) {
 
-        while (!readFile.eof()) {
-            readFile >> output;
+        while (getline(readFile,reader)) {
+            //uploadApart(reader);
+            //cout<<"[DEBUG - reader]"<<reader<<endl;
+            partReaded += reader.length();
+            fileSended += reader.length();
+            if(whenPrintCharacter>0 && partReaded>= whenPrintCharacter){
+                for(int i = 0; i< partReaded/whenPrintCharacter;++i)
+                    cout<<"*"<<flush;
+                partReaded = partReaded % whenPrintCharacter;
+                sleep(1);
+            }  
         }
+        cout<<endl;
     }
 
     readFile.close();
 }
-SecureMessageCreator* msgCreator;
-
-void uploadCommand(string command){
-    readFile(&command[0]);
-          cout<<"[FILE CONTENT]"<<output<<endl;
-          unsigned char* secureMessage;
-          int hashSize;
+void uploadCommand(string argument){
+    string reader;
+    ifstream readFile;
+    const char* fileName= argument.c_str();
     
-          size_t msgSize = msgCreator->EncryptAndSignMessage(output,100,&secureMessage);
+    readFile.open(fileName, ios::in|ios::binary|ios::ate);
+    long fileSize = readFile.tellg();
+    if(fileSize <= 0){
+        //if 0 file is empty
+        //if <0 file doesn't exists
+        cout<<"[ERROR] file doesn't exist or it's empty"<<endl;
+        readFile.close();
+        return;
+    }
+    readFile.close();
+    sendUploadCommand(argument,fileSize);
+    sendFile(argument,fileSize);
     
-          cout<<"[secureMessage] "<<secureMessage<<endl;
-          client->sendMsg(secureMessage,msgSize);
 }
 
 void retriveListCommand(){
-    cout<<"Chiamato comando Retrive-List, Attualmente non implementato :)"<<endl<<endl;
+    cout<<"Called 'Retrive-List', not implemented yet :("<<endl<<endl;
     //client->sendMsg("rl","rl".length());
 }
 
 void retriveFileCommand(){
-    cout<<"Chiamato comando Retrive-File, Attualmente non implementato :)"<<endl<<endl;
+    cout<<"Called 'Retrive-File', not implemented yet :("<<endl<<endl;
 }
 
 void helpCommand(){
-    cout<<"  - per fare l'upload di un file digitare - u [nome file]"<<endl;
-    cout<<"  - per ottenere la lista dei file nel server digitare - rl"<<endl;
-    cout<<"  - per ricevere un file dal server digitare - rf [nome file]"<<endl;
-    cout<<"  - per uscire dal programma digitare - q"<<endl;
+    cout<<"  - [u | upload] <filename>: upload <filename> to the server"<<endl;
+    cout<<"  - [rl | retrive-list]: retrive the list of files available from the server."<<endl;
+    cout<<"  - [rf | retrive-file] <filename>: per ricevere un file dal server digitare"<<endl;
+    cout<<"  - [quit | exit | q]: for closing the program"<<endl;
     cout<<" ------------------------------------------------------------"<<endl<<endl;
+}
+
+void quitCommand(){
+    client->closeConnection();
+    cout<<"Closing program... Bye bye :)"<<endl<<endl;
 }
 
 
@@ -61,10 +104,10 @@ int main(int num_args, char* args[]){
     // 3 nome file da trasferire;
 
     /*LETTURA PARAMETRI*/
-    if(num_args != 4){
-        cout<<"ERROR: Number of parameters not valid."<<endl;
-        cout<<"Usage: "<<args[0]<<" <_ipServer> <SERVER_PORT_#> <FILE>"<<endl;
-        cout<<"Closing program."<<endl<<endl;
+    if(num_args != 3){
+        cout<<"ERROR: Number of parameters are not valid."<<endl;
+        cout<<"Usage: "<<args[0]<<" <_ipServer> <SERVER_PORT_#>"<<endl;
+        cout<<"Closing program..."<<endl<<endl;
         return -1;
     }
 
@@ -76,32 +119,34 @@ int main(int num_args, char* args[]){
         exit(-5);
     }
 
+    string input;
     string command;
-    string c;
+    string argument;
     size_t pos = 0;
 
     bool exit = false;
-
+    cout<<"Insert the command (digit 'help' or 'h' for the command list):"<<endl;
     for(;;) {
 
-      cout<<"Inserisci il comando (Digita h per avere la lista dei comandi):\n$> ";
+      cout<<"$> ";
       cin>>command;
       cout<<endl;
-
-      pos = command.find(" ");
-      c = command.substr(0, pos);
-      command.erase(0, pos+1);
     
-        if(c=="u"){
-            uploadCommand(command);
+        if(command=="u"||command=="upload"){
+            cin>>argument;
+            uploadCommand(argument);
         }
-        if(c=="rl"){
+        if(command=="rl"||command=="retrive-list"){
             retriveListCommand();
         }
-        if(c=="rf"){
+        if(command=="rf"||command=="retrive-file"){
             retriveFileCommand();
         }
-        if(c=="q"){
+        if(command=="h"||command=="help"){
+            helpCommand();
+        }
+        if(command=="q"||command=="quit"||command=="exit"){
+            quitCommand();
             break;
         }
     }

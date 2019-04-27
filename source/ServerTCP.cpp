@@ -1,103 +1,67 @@
 #include "ServerTCP.h"
 #include <iostream>
+#include <time.h> //per la select()
 using namespace std;
 
-ServerTCP::ServerTCP(unsigned short portNumber){
-    _portNumber = portNumber;
-
-    /*Azzeramento set*/
-    FD_ZERO(&_mainSet);
-    FD_ZERO(&_readingSet);
-    
-    localAddrStructInit();
-    listenerSocketInit();
-    std::cout<<"Server pronto a ricevere sulla porta "<<_portNumber<<std::endl;
-}
-
-//ritorna -1 se arriva una nuova connessione e l'accetta
-//altrimenti ritorna il numero del socket da gestire
-int ServerTCP::waitForRequest(){	
-    _readingSet = _mainSet;//copio per la modifica
-    //mi metto in attesa finchè un socket non è pronto
-    select(_maxDescriptor+1, &_readingSet, NULL, NULL, NULL);
-    /*CONTROLLO TUTTO IL SET*/
-    for(int i=0; i<= _maxDescriptor; i++){
-        //cerco queli pronti
-        if(FD_ISSET(i,&_readingSet)){
-            //se è pronto il socket d'ascolto allora c'è una nuova connessione
-            if(i == _listenerSocket){
-                acceptNewConnecction();
-                return -1;
-            }else{
-                //è un altro socket
-                return i;
-            }
-        }
-    }
-    return -1;
-}
-
-int ServerTCP::recvMsg(int socketRecvFrom,void** buffer){
-    int numberOfBytes = recvTCP(socketRecvFrom,buffer);
-    if(numberOfBytes == 0){
-        clientDisconected(socketRecvFrom);
-        return numberOfBytes;
-    }
-    return numberOfBytes;
-}
-
-void ServerTCP::sendMsg(int socketRecvFrom,void *buffer, size_t bufferSize){
-    sendTCP(socketRecvFrom, buffer, bufferSize);
-}
-
-void ServerTCP::localAddrStructInit(){
+void ServerTCP::localAddrStructInit(void){
+    memset(&_localAddrStruct, 0, sizeof(_localAddrStruct)); // Pulizia 
     _localAddrStruct.sin_family = AF_INET;
-    _localAddrStruct.sin_addr.s_addr = INADDR_ANY;
     _localAddrStruct.sin_port = htons(_portNumber);
+    _localAddrStruct.sin_addr.s_addr = INADDR_ANY;
 }
 
 void ServerTCP::listenerSocketInit(){
-    _listenerSocket = socket(AF_INET,SOCK_STREAM,0);
-    if(_listenerSocket == -1){
-        std::cout<<"ERRORE socket() nella creazione del socket di ascolto: ";
+    int ret;
+    _listenerSocket = socket(AF_INET, SOCK_STREAM, 0);
+    ret = bind(_listenerSocket, (struct sockaddr*)&_localAddrStruct, sizeof(_localAddrStruct) );
+    if(ret < 0){
+        cout<<"[ERROR] not possible binding the address."<<endl;
         exit(-1);
     }
-    if(bind(_listenerSocket, (struct sockaddr*)&_localAddrStruct, sizeof(_localAddrStruct)) == -1){
-        std::cout<<"ERRORE bind(): ";
+    ret = listen(_listenerSocket, 0);
+    if(ret < 0){
+        cout<<"[ERROR] not possible switching in listening mode."<<endl;
         exit(-1);
     }
-    if(listen(_listenerSocket,10)){
-        std::cout<<"ERRORE listen(): ";
-        exit(-1);
-    }
-
-    FD_SET(_listenerSocket, &_mainSet);//aggiorno il socket d'ascolto al set principale
-    _maxDescriptor = _listenerSocket;//tengo traccia del socket con l'id più alto 
 }
 
-void ServerTCP::acceptNewConnecction(){
-    socklen_t addressSize;
-    int newSocket;
-    addressSize = sizeof(_clientAddrStruct);
-    //accetto la connessione
-    newSocket = accept(_listenerSocket, (struct sockaddr*)&_clientAddrStruct, &addressSize);
-    if(newSocket == -1){
-        perror("ERRORE accept() sulla nuova connessione: ");
-        exit(-1);
-    }
-    //aggiungo il nuovo socket al set principale per controllarlo successivamente
-    FD_SET(newSocket,&_mainSet);
-    //se il suo id è maggiore aggiorno anche il _maxDescriptor
-    if(newSocket>_maxDescriptor){
-        _maxDescriptor = newSocket;
-    }
-    printf("[%d]",newSocket);
-    printf("Nuovo client connesso.\n");
+void ServerTCP::clientDisconnected(){
+    close(_comunicationSocket);
+    _comunicationSocket = -1;
 }
 
-void ServerTCP::clientDisconected(int socket){
-    close(socket);
-    FD_CLR(socket,&_mainSet);
-    printf("[%d]",socket);
-    printf("Client disconnesso.\n");
+ServerTCP::ServerTCP(unsigned short portNumber){
+    _portNumber = portNumber;
+    _comunicationSocket = -1;
+    localAddrStructInit();
+    listenerSocketInit();
+    cout<<"[INFO]Server successfull listening on port "<<_portNumber<<endl;
 }
+
+int ServerTCP::acceptNewConnecction(){
+    socklen_t len = sizeof(_clientAddrStruct);
+    memset(&_clientAddrStruct,0,len);
+    _comunicationSocket = accept(_listenerSocket, (struct sockaddr*) &_clientAddrStruct, &len);
+    if(_comunicationSocket<0){
+        cout<<"[ERROR] not possible accept new connection."<<endl;
+    }
+    return _comunicationSocket;
+}
+
+int ServerTCP::recvMsg(void** buffer){
+    if(_comunicationSocket<0){
+        cout<<"[ERROR] recvMsg called without a client connected."<<endl;
+    }
+    int numberOfBytes = recvTCP(_comunicationSocket,buffer);
+    if(numberOfBytes == 0){
+        clientDisconnected();
+    }
+    return numberOfBytes;
+}
+void ServerTCP::sendMsg(void *buffer, size_t bufferSize){
+    if(_comunicationSocket<0){
+        cout<<"[ERROR] sendMsg called without a client connected"<<endl;
+    }
+    sendTCP(_comunicationSocket, buffer, bufferSize);
+}
+

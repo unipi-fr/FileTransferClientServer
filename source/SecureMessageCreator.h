@@ -1,6 +1,8 @@
 #include <openssl/conf.h>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
+#include <openssl/bn.h>
+#include <openssl/dh.h>
 #include <string.h>
 
 class SecureMessageCreator {
@@ -20,4 +22,5 @@ class SecureMessageCreator {
     SecureMessageCreator();
     int EncryptAndSignMessage(unsigned char* plainText, int plainTextLen, unsigned char** secureText);
     bool DecryptAndCheckSign(unsigned char* secureText, int secureTextLen, unsigned char** plainText, int &plainTextLen);
+    static DH* get_dh2048(void);
 };

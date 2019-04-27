@@ -12,6 +12,7 @@ private:
 public:
     ClientTCP(char* ipServer, unsigned short serverPortNumber);
     bool serverTCPconnection();
+    void closeConnection();
     void sendMsg(void *buffer, size_t bufferSize);
     int recvMsg(void** buffer);
 };

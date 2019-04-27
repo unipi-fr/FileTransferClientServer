@@ -26,7 +26,9 @@ ClientTCP::ClientTCP(char* ipServer, unsigned short serverPortNumber){
 }
 
 bool ClientTCP::serverTCPconnection(){
-    if(connect(_socketTCP, (struct sockaddr*)&_serverStructAddr, sizeof(_serverStructAddr))){
+    int ret = connect(_socketTCP, (struct sockaddr*)&_serverStructAddr, sizeof(_serverStructAddr));
+    cout<<"[DEBUG connectResut]"<<ret<<endl;
+    if(ret<0){
         cout<<"\nERROR connect(): Failed connect to the server.";
         return false;
     }
@@ -41,4 +43,8 @@ void ClientTCP::sendMsg(void *buffer, size_t bufferSize){
 int ClientTCP::recvMsg(void** buffer){
     int numberOfBytes = recvTCP(_socketTCP,buffer);
     return numberOfBytes;
+}
+
+void ClientTCP::closeConnection(){
+    close(_socketTCP);
 }
