@@ -1,4 +1,4 @@
-#include "SecureMessageCreator.h"
+#include "SecureplainTextCreator.h"
 #include "ServerTCP.h"
 #include <iostream>
 #include <fstream>
@@ -7,72 +7,90 @@
 using namespace std;
 
 ServerTCP* server;
-SecureMessageCreator* msgCreator;
+int activeSocket;
+SecureplainTextCreator* msgCreator;
 
-void writeFile (char *input){
-    ofstream file("file.txt");
-    
-    if (file.is_open()){
-        file << input;
-        file.close();
-    }
-    else 
-        cout << "Unable to open file"<<endl;
-}
-
-void uploadCommand(string fileName,size_t fileSize){
-	cout<<"[DEBUG] upload command called succefull with filename="<<fileName<<" and fileSize="<<fileSize<<".\n unfurtnally not implemented yet :("<<endl;
-	return;
+int receiveApart(unsigned char** plainText){
 	int numberOfBytes;
-	unsigned char* buffer;
-	numberOfBytes = server->recvMsg((void**) &buffer);
+	unsigned char* encryptedText;
+	numberOfBytes = server->recvMsg((void**) &encryptedText);
+
 	if(numberOfBytes == 0){
-		return;
+		return -1;
 	}
-	unsigned char* message;
-	int messageSize;
-	cout<<"[secureMessage]"<<buffer<<endl;
-	bool check = msgCreator->DecryptAndCheckSign(buffer,numberOfBytes,&message,messageSize);
-	cout<<"[message]"<<message<<endl;
+
+	int plainTextSize;
+	cout<<"[secureplainText]"<<encryptedText<<endl;
+	bool check = msgCreator->DecryptAndCheckSign(encryptedText, numberOfBytes, plainText, plainTextSize);
+	
+	cout<<"[plainText]"<<plainText<<endl;
 	if (!check)
 	{
 		cout<<"[ERROR] not valid Hash"<<endl;
+		return -1;
 	}
 	cout<<"[INFO] hash OK!"<<endl;
 
-	cout<<"[FILE CONTENT]"<<message<<endl;
-	writeFile((char*)message);
-	free(buffer);
-	free(message);
+	free(encryptedText);
+
+	return plainTextSize;
 }
 
-stringstream reciveCommad(int &socketToManage){
+void uploadCommand(string fileName,size_t fileSize){
+	cout<<"[DEBUG] upload command called succefull with filename="<<fileName<<" and fileSize="<<fileSize<<endl;
+	//return;
+	ofstream writeFile;
+	unsigned char* writer;
+	int lenght;
+	writeFile.open(fileName.c_str(), ios::in|ios::binary);
+
+	if (!writeFile.is_open()) {
+		//TODO: errore aprire il file
+	}
+	
+	for(sizte_t writedBytes = 0; writedBytes < fileSize;){
+		lenght = receiveApart(&writer);
+		if(lenght <0){
+			break;
+		}
+		writeFile.write(writer, lenght);
+		free(writer);
+	}
+	
+	if(lenght <0){
+		cout<<"[ERROR] Could not receive a part of the file ---> Client will be disconnected."<<endl;
+		server->forceClientDisconnection();
+	}
+
+}
+
+stringstream reciveCommad(){
 	stringstream res;
-	char* rcvBuffer;
+	char* rcvEncryptedPlainText;
 	char* command;
 	int commandSize;
 	int bytesRecived;
-	bytesRecived = server->recvMsg((void**)&rcvBuffer);
+	bytesRecived = server->recvMsg((void**)&rcvEncryptedPlainText);
 	if(bytesRecived == 0){//connessione chiusa dal client
 		cout<<"[INFO] Client disconnected."<<endl;
 		socketToManage = -1;
 		return res;
 	}
-	if(!msgCreator->DecryptAndCheckSign((unsigned char*)rcvBuffer,bytesRecived,(unsigned char**)&command,commandSize)){
+	if(!msgCreator->DecryptAndCheckSign((unsigned char*)rcvEncryptedPlainText,bytesRecived,(unsigned char**) &command,commandSize)){
 		//errore
 		return res;
 	}
 	cout<<"[DEBUG msg]"<<command<<endl;
 	res<<command;
-	free((void*)rcvBuffer);
+	free((void*)rcvEncryptedPlainText);
 	free((void*)command);
 	return res;
 }
 
-void manageConnection(int &socketToManage){
+void manageConnection(){
 	stringstream commandStream;
 	string command;
-	commandStream = reciveCommad(socketToManage);
+	commandStream = reciveCommad();
 	commandStream>>command;
 	cout<<"[DEBUG command]'"<<command<<"'"<<endl;
 	if(command=="u"){
@@ -99,8 +117,8 @@ int main(int num_args, char* args[]){
 		exit(-2);
 	}
 	server = new ServerTCP(atoi(args[1]));
-	msgCreator = new SecureMessageCreator();
-	int activeSocket;
+	msgCreator = new SecureplainTextCreator();
+	activeSocket = -1;
 	for(;;){
 		cout<<"[INFO] Wainting for the client."<<endl;
 		activeSocket = server->acceptNewConnecction();
@@ -108,7 +126,7 @@ int main(int num_args, char* args[]){
 			cout<<"[INFO] New client connected."<<endl;
 		}
 		while(activeSocket>=0){
-			manageConnection(activeSocket);
+			manageConnection();
 		}
 	}	
 return 0;

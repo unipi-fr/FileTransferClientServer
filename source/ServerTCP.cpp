@@ -64,10 +64,15 @@ int ServerTCP::recvMsg(void** buffer){
     }
     return numberOfBytes;
 }
+
 void ServerTCP::sendMsg(void *buffer, size_t bufferSize){
     if(_comunicationSocket<0){
         cout<<"[ERROR] sendMsg called without a client connected"<<endl;
     }
     sendTCP(_comunicationSocket, buffer, bufferSize);
+}
+
+void ServerTCP::forceClientDisconnection(){
+    close(_comunicationSocket);
 }
 

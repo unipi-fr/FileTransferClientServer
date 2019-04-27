@@ -79,7 +79,9 @@ unsigned char* SecureMessageCreator::sign(unsigned char *inBuf, int inLen){
 
   //Init,Update,Finalise digest
   HMAC_Init_ex(mdctx, _hmac_key, _hmacKeySize, _md, NULL);
-  HMAC_Update(mdctx, (unsigned char*) inBuf, inLen);
+
+  while(HMAC_Update(mdctx, (unsigned char*) inBuf, inLen) == 1) {}
+
   HMAC_Final(mdctx, outBuf, (unsigned int*) &_hashSize);
 
   //Delete context
@@ -92,7 +94,7 @@ int SecureMessageCreator::encrypt(unsigned char* plaintext, int plainTextLen, un
   EVP_CIPHER_CTX* context;
 
   int len;
-  int chiperTextLen;
+  int chiperTextLen = 0;
 
   /*Creazione del contesto*/
   context = EVP_CIPHER_CTX_new();
@@ -100,10 +102,11 @@ int SecureMessageCreator::encrypt(unsigned char* plaintext, int plainTextLen, un
   //Inizializzione
   EVP_EncryptInit(context, EVP_aes_128_ecb(), _encrypt_key, iv);
 
-  //Encrypt update: una chiamata perchè il messaggio è corto
-  EVP_EncryptUpdate(context, chipertext, &len, plaintext, plainTextLen);
-  chiperTextLen = len;
-
+  //Encrypt update
+  while(EVP_EncryptUpdate(context, chipertext, &len, plaintext, plainTextLen) == 1){
+    chiperTextLen += len;
+  }
+  
   //Encrypt final: finalizza la cifratura
   EVP_EncryptFinal(context, chipertext+len, &len);
   chiperTextLen += len;
@@ -117,7 +120,7 @@ int SecureMessageCreator::decrypt(unsigned char* cipherText, int cipherTextLen, 
   EVP_CIPHER_CTX* context;
 
   int len;
-  int decriptedTextLen;
+  int decriptedTextLen = 0;
 
   /*Creazione del contesto*/
   context = EVP_CIPHER_CTX_new();
@@ -125,9 +128,10 @@ int SecureMessageCreator::decrypt(unsigned char* cipherText, int cipherTextLen, 
   //Inizializzione
   EVP_DecryptInit(context, EVP_aes_128_ecb(), _encrypt_key, iv);
 
-  //Encrypt update: una chiamata perchè il messaggio è corto
-  EVP_DecryptUpdate(context, decryptedText, &len, cipherText, cipherTextLen);
-  decriptedTextLen = len;
+  //Encrypt update
+  while(EVP_DecryptUpdate(context, decryptedText, &len, cipherText, cipherTextLen) == 1){
+    decriptedTextLen += len;
+  }
 
   //Encrypt final: finalizza la cifratura
   EVP_DecryptFinal(context, decryptedText+len, &len);

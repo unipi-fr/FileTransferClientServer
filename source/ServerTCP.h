@@ -20,4 +20,5 @@ public:
 	int acceptNewConnecction();
 	int recvMsg(void** buffer);
 	void sendMsg(void *buffer, size_t bufferSize);
+	void forceClientDisconnection();
 };
