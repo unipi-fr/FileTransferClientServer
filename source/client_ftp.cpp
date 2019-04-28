@@ -1,110 +1,45 @@
-#include "SecureMessageCreator.h"
+#include "SecureConnection.h"
 #include "ClientTCP.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>
 using namespace std;
 
-ClientTCP *client;
-SecureMessageCreator *msgCreator;
+SecureConnection *_secureConnection;
+ClientTCP *_client;
 
-void uploadApart(const char* buffer, const size_t buffSize)
+void sendUploadCommand(string file)
 {
-    unsigned char *secureMessage;
-    size_t msgSize = msgCreator->EncryptAndSignMessage((unsigned char*)buffer, buffSize , &secureMessage);
-    client->sendMsg(secureMessage, msgSize);
-    free(secureMessage);
+    string msg = "u " + file;
+    _secureConnection->sendSecureMsg(msg.c_str(),msg.length());
 }
 
-void sendUploadCommand(string file, size_t fileSize)
+void sendRetriveListCommand()
 {
-    unsigned char *secureMessage;
-    stringstream ss;
-    ss << "u " << file << " " << fileSize;
-    string msg = ss.str();
-    size_t msgSize = msgCreator->EncryptAndSignMessage((unsigned char *)msg.c_str(), msg.length(), &secureMessage);
-    client->sendMsg(secureMessage, msgSize);
-}
-
-void sendFile(ifstream &readFile)
-{
-    string reader;
-    int fileSize =  readFile.tellg();;
-    readFile.seekg(0, ios::beg);
-    size_t buffSize = 1024;
-    char* buffer = new char[buffSize];
-
-    size_t whenPrintCharacter = fileSize / 80;
-    size_t partReaded = 0;
-    size_t fileSended = 0;
-
-    size_t pos = 0;
-    if (readFile.is_open())
-    {
-
-        while (!readFile.eof())
-        {
-            readFile.read(buffer,buffSize);
-            size_t readedBytes = readFile.gcount();
-            uploadApart(buffer,readedBytes);
-            
-            //the following code prints * characters
-            partReaded += readedBytes;
-            fileSended += readedBytes;
-            if (whenPrintCharacter > 0 && partReaded >= whenPrintCharacter)
-            {
-                for (int i = 0; i < partReaded / whenPrintCharacter; i++)
-                    cout << "*" << flush;
-                partReaded = partReaded % whenPrintCharacter;
-                sleep(1);
-            }
-            // *** :P :o 8====D {()} ***
-        }
-        cout << endl;
-    }
-
-    readFile.close();
+    string msg = "rl";
+    _secureConnection->sendSecureMsg(msg.c_str(),msg.length());
 }
 
 void uploadCommand(string argument)
 {
-    cout<<"[DEBUG] entering uppload command"<<endl;
-    string reader;
-    ifstream readFile;
-    const char *fileName = argument.c_str();
-    long fileSize;
-    cout<<"[DEBUG] opening file"<<endl;
-    readFile.open(fileName, ios::in | ios::binary | ios::ate);
-    if (readFile.is_open())
-    {
-        cout<<"[DEBUG] file open"<<endl;
-        fileSize = readFile.tellg();
-        if (fileSize <= 0)
-        {
-            //if 0 file is empty
-            //if <0 file doesn't exists
-            cout << "[ERROR] file doesn't exist or it's empty" << endl;
-            readFile.close();
-            return;
-        }
+    cout << "[DEBUG] entering uppload command" << endl;
+    
+    sendUploadCommand(argument);
+    cout << "[DEBUG] command sended" << endl;
+    
+    int ret = _secureConnection->sendFile(argument.c_str(), true);
+    if(ret == 0){
+        cout<<"[ERROR] server sended an empty file"<<endl;
     }
-    else
-    {
-        cout << "[ERROR] could not open the file." << endl;
-        readFile.close();
-        return;
+    if(ret < 0 ){
+        cout<<"[ERROR] uploading the file"<<endl;
     }
-    cout<<"[DEBUG] sending command"<<endl;
-    sendUploadCommand(argument, fileSize);
-    cout<<"[DEBUG] command sended"<<endl;
-    sendFile(readFile);
 }
 
 void retriveListCommand()
 {
-    cout << "Called 'Retrive-List', not implemented yet :(" << endl
-         << endl;
-    //client->sendMsg("rl","rl".length());
+    cout << "Called 'Retrive-List'" << endl;
+    sendRetriveListCommand();
 }
 
 void retriveFileCommand()
@@ -147,14 +82,20 @@ int main(int num_args, char *args[])
         return -1;
     }
 
-    msgCreator = new SecureMessageCreator();
-    client = new ClientTCP(args[1], atoi(args[2]));
-    /*FINE LETTURA PARAMETRI*/
-    if (!client->serverTCPconnection())
-    {
+    string ipServer = args[1];
+    unsigned short portNumber = atoi(args[2]);
+    // end parameter read
 
+    _client = new ClientTCP(ipServer.c_str(), portNumber);
+
+    if (!_client->serverTCPconnection())
+    {
+        cout<<endl<<"ERROR connect(): Failed connect to the server."<<endl;
         exit(-5);
     }
+    cout<<"Successfull connected to the server "<<ipServer<<" (PORT: "<<portNumber<<")"<<endl;
+
+    _secureConnection = new SecureConnection(_client);
 
     string input;
     string command;

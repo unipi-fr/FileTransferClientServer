@@ -26,14 +26,8 @@ ClientTCP::ClientTCP(char* ipServer, unsigned short serverPortNumber){
 }
 
 bool ClientTCP::serverTCPconnection(){
-    int ret = connect(_socketTCP, (struct sockaddr*)&_serverStructAddr, sizeof(_serverStructAddr));
-    cout<<"[DEBUG connectResut]"<<ret<<endl;
-    if(ret<0){
-        cout<<"\nERROR connect(): Failed connect to the server.";
-        return false;
-    }
-    cout<<"Successfull connected to the server "<<_ipServer<<" (PORT: "<<_serverPortNumber<<")\n";
-    return true;
+    //Return true on succcessful connection false otherwise
+    return connect(_socketTCP, (struct sockaddr*)&_serverStructAddr, sizeof(_serverStructAddr)) >= 0;
 }
 
 void ClientTCP::sendMsg(void *buffer, size_t bufferSize){

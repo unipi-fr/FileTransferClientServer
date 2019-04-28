@@ -1,6 +1,7 @@
 #include "socket_lib.h"
+#include "IClientServerTCP.h"
 
-class ServerTCP{
+class ServerTCP : public IClientServerTCP{
 private:
 	unsigned short _portNumber;	
 

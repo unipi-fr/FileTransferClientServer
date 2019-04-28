@@ -1,4 +1,4 @@
-#include "SecureMessageCreator.h"
+#include "SecureConnection.h"
 #include "ServerTCP.h"
 #include <iostream>
 #include <fstream>
@@ -6,133 +6,115 @@
 
 using namespace std;
 
-ServerTCP* server;
-int activeSocket;
-SecureMessageCreator* msgCreator;
+SecureConnection *_secureConnection;
+ServerTCP * _server;
+int _activeSocket;
 
-int receiveApart(char** plainText){
-	int numberOfBytes;
-	unsigned char* encryptedText;
-	numberOfBytes = server->recvMsg((void**) &encryptedText);
 
-	if(numberOfBytes == 0){
-		return -1;
+void uploadCommand(string fileName)
+{
+	string pathFileName = "uploadedFile/" + fileName;
+	int res = _secureConnection->receiveFile(pathFileName.c_str());
+	if(res < 0){
+		_activeSocket = -1;
+		_server->forceClientDisconnection();
 	}
-
-	int plainTextSize;
-	//cout<<"[secureplainText]"<<encryptedText<<endl;
-	bool check = msgCreator->DecryptAndCheckSign(encryptedText, numberOfBytes, (unsigned char**)plainText, plainTextSize);
-	
-	//cout<<"[plainText]"<<(*plainText)<<endl;
-	if (!check)
-	{
-		cout<<"[ERROR] not valid Hash"<<endl;
-		return -1;
-	}
-	//cout<<"[INFO] hash OK!"<<endl;
-
-	free(encryptedText);
-
-	return plainTextSize;
 }
 
-void uploadCommand(string fileName,size_t fileSize){
-	cout<<"[DEBUG] upload command called succefull with filename="<<fileName<<" and fileSize="<<fileSize<<endl;
-	//return;
-	ofstream writeFile;
-	char* writer;
-	int lenght;
-	writeFile.open(fileName.c_str(), ios::binary);
+void retriveListCommand()
+{
+	cout << "[DEBUG] retrive list command successfull called" << endl;
+	cout << "[INFO] creating list" << endl;
+	system("stat -c \"%n - %s Bytes\" uploadedFile/* > fileList.txt");
 
-	if (!writeFile.is_open()) {
-		//TODO: errore aprire il file
-		cout<<"[ERROR|upload] could not open the file"<<endl;
+	cout << "[DEBUG] opening file" << endl;
+	readFile.open("fileList.txt", ios::in | ios::binary);
+	if (readFile.is_open())
+	{
+		cout << "[DEBUG] file open" << endl;
+	}
+	else
+	{
+		cout << "[ERROR] could not open the file." << endl;
+		readFile.close();
 		return;
 	}
-	size_t writedBytes;
-	for(writedBytes = 0; writedBytes < fileSize; writedBytes += lenght){
-		cout<<"[DEBUG] writedBites = " << writedBytes << endl;
-		lenght = receiveApart(&writer);
-		if(lenght <0){
-			break;
-		}
-		writeFile.write(writer, lenght);
-		free(writer);
-	}
-	cout<<"[DEBUG] writedBites = " << writedBytes << endl;
-	
-	if(lenght <0){
-		cout<<"[ERROR] Could not receive a part of the file ---> Client will be disconnected."<<endl;
-		server->forceClientDisconnection();
-	}
-
+	cout << "[DEBUG] sending fileList.txt" << endl;
+	sendFile(readFile);
+	cout << "[DEBUG] fileList.txt sended" << endl;
 }
 
-stringstream reciveCommad(){
+stringstream receiveCommad()
+{
 	stringstream res;
-	char* rcvEncryptedPlainText;
-	char* command;
-	int commandSize;
+	char *command;
 	int bytesRecived;
-	bytesRecived = server->recvMsg((void**)&rcvEncryptedPlainText);
-	if(bytesRecived == 0){//connessione chiusa dal client
-		cout<<"[INFO] Client disconnected."<<endl;
-		activeSocket = -1;
+	
+	bytesRecived = _secureConnection->recvSecureMsg((void**)&command);
+	if(bytesRecived < 0){
+		cout << "[ERROR] not possible retrive the command"<< endl;
 		return res;
 	}
-	if(!msgCreator->DecryptAndCheckSign((unsigned char*)rcvEncryptedPlainText,bytesRecived,(unsigned char**) &command,commandSize)){
-		//errore
-		return res;
-	}
-	cout<<"[DEBUG msg]"<<command<<endl;
-	res<<command;
-	free((void*)rcvEncryptedPlainText);
-	free((void*)command);
+	
+	cout << "[DEBUG msg]" << command << endl;
+	res << command;
+	
+	free((void *)command);
+	
 	return res;
 }
 
-void manageConnection(){
+void manageConnection()
+{
 	stringstream commandStream;
 	string command;
-	cout<<"[INFO] Ready to receive a command"<<endl;
-	commandStream = reciveCommad();
-	commandStream>>command;
-	cout<<"[DEBUG command]'"<<command<<"'"<<endl;
-	if(command=="u"){
+	cout << "[INFO] Ready to receive a command" << endl;
+	commandStream = receiveCommad();
+	commandStream >> command;
+	cout << "[DEBUG command]'" << command << "'" << endl;
+	if (command == "u")
+	{
 		string filename;
-		size_t fileSize;
-		commandStream>>filename>>fileSize;
+		commandStream >> filename;
 		//cout<<"[DEBUG filename]"<<filename<<endl;
 		//cout<<"[DEBUG filesize]"<<fileSize<<endl;
-		uploadCommand(filename,fileSize);
+		uploadCommand(filename);
 	}
-	if(command=="rl"){
-		//retriveListCommand();
+	if (command == "rl")
+	{
+		retriveListCommand();
 	}
-	if(command=="rf"){
+	if (command == "rf")
+	{
 		//retriveFileCommand();
 	}
 }
 
-
-
-int main(int num_args, char* args[]){	
-	if(num_args != 2){
-		printf("\nERRORE: Numero dei parametri non valido.\nUsage: %s <portNumber>\nchiusura programma...\n",args[0]);
+int main(int num_args, char *args[])
+{
+	if (num_args != 2)
+	{
+		printf("\nERRORE: Numero dei parametri non valido.\nUsage: %s <portNumber>\nchiusura programma...\n", args[0]);
 		exit(-2);
 	}
-	server = new ServerTCP(atoi(args[1]));
-	msgCreator = new SecureMessageCreator();
-	activeSocket = -1;
-	for(;;){
-		cout<<"[INFO] Wainting for the client."<<endl;
-		activeSocket = server->acceptNewConnecction();
-		if(activeSocket>=0){
-			cout<<"[INFO] New client connected."<<endl;
+	unsigned short portNumber = atoi(args[1]);
+	
+	_server = new ServerTCP(portNumber);
+	_secureConnection = new SecureConnection(_server);
+	
+	_activeSocket = -1;
+	for (;;)
+	{
+		cout << "[INFO] Wainting for the client." << endl;
+		_activeSocket = server->acceptNewConnecction();
+		if (_activeSocket >= 0)
+		{
+			cout << "[INFO] New client connected." << endl;
 		}
-		while(activeSocket>=0){
+		while (_activeSocket >= 0)
+		{
 			manageConnection();
 		}
-	}	
-return 0;
+	}
+	return 0;
 }

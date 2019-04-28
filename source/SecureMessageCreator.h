@@ -3,7 +3,6 @@
 #include <openssl/hmac.h>
 #include <openssl/bn.h>
 #include <openssl/dh.h>
-#include <string.h>
 
 class SecureMessageCreator {
   private:
