@@ -8,10 +8,10 @@ using namespace std;
 ClientTCP *client;
 SecureMessageCreator *msgCreator;
 
-void uploadApart(const unsigned char* buffer, const size_t buffSize)
+void uploadApart(const char* buffer, const size_t buffSize)
 {
     unsigned char *secureMessage;
-    size_t msgSize = msgCreator->EncryptAndSignMessage(buffer, buffSize , &secureMessage);
+    size_t msgSize = msgCreator->EncryptAndSignMessage((unsigned char*)buffer, buffSize , &secureMessage);
     client->sendMsg(secureMessage, msgSize);
     free(secureMessage);
 }
@@ -26,13 +26,13 @@ void sendUploadCommand(string file, size_t fileSize)
     client->sendMsg(secureMessage, msgSize);
 }
 
-void sendFile(ifstream readFile)
+void sendFile(ifstream &readFile)
 {
     string reader;
     int fileSize =  readFile.tellg();;
     readFile.seekg(0, ios::beg);
     size_t buffSize = 1024;
-    unsigned char* buffer = new unsigned char[buffSize];
+    char* buffer = new char[buffSize];
 
     size_t whenPrintCharacter = fileSize / 80;
     size_t partReaded = 0;
@@ -68,14 +68,16 @@ void sendFile(ifstream readFile)
 
 void uploadCommand(string argument)
 {
+    cout<<"[DEBUG] entering uppload command"<<endl;
     string reader;
     ifstream readFile;
     const char *fileName = argument.c_str();
     long fileSize;
-
+    cout<<"[DEBUG] opening file"<<endl;
     readFile.open(fileName, ios::in | ios::binary | ios::ate);
-    if (file.is_open())
+    if (readFile.is_open())
     {
+        cout<<"[DEBUG] file open"<<endl;
         fileSize = readFile.tellg();
         if (fileSize <= 0)
         {
@@ -92,7 +94,9 @@ void uploadCommand(string argument)
         readFile.close();
         return;
     }
+    cout<<"[DEBUG] sending command"<<endl;
     sendUploadCommand(argument, fileSize);
+    cout<<"[DEBUG] command sended"<<endl;
     sendFile(readFile);
 }
 

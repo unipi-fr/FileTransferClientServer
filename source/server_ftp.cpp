@@ -1,4 +1,4 @@
-#include "SecureplainTextCreator.h"
+#include "SecureMessageCreator.h"
 #include "ServerTCP.h"
 #include <iostream>
 #include <fstream>
@@ -8,9 +8,9 @@ using namespace std;
 
 ServerTCP* server;
 int activeSocket;
-SecureplainTextCreator* msgCreator;
+SecureMessageCreator* msgCreator;
 
-int receiveApart(unsigned char** plainText){
+int receiveApart(char** plainText){
 	int numberOfBytes;
 	unsigned char* encryptedText;
 	numberOfBytes = server->recvMsg((void**) &encryptedText);
@@ -20,16 +20,16 @@ int receiveApart(unsigned char** plainText){
 	}
 
 	int plainTextSize;
-	cout<<"[secureplainText]"<<encryptedText<<endl;
-	bool check = msgCreator->DecryptAndCheckSign(encryptedText, numberOfBytes, plainText, plainTextSize);
+	//cout<<"[secureplainText]"<<encryptedText<<endl;
+	bool check = msgCreator->DecryptAndCheckSign(encryptedText, numberOfBytes, (unsigned char**)plainText, plainTextSize);
 	
-	cout<<"[plainText]"<<plainText<<endl;
+	//cout<<"[plainText]"<<(*plainText)<<endl;
 	if (!check)
 	{
 		cout<<"[ERROR] not valid Hash"<<endl;
 		return -1;
 	}
-	cout<<"[INFO] hash OK!"<<endl;
+	//cout<<"[INFO] hash OK!"<<endl;
 
 	free(encryptedText);
 
@@ -40,15 +40,18 @@ void uploadCommand(string fileName,size_t fileSize){
 	cout<<"[DEBUG] upload command called succefull with filename="<<fileName<<" and fileSize="<<fileSize<<endl;
 	//return;
 	ofstream writeFile;
-	unsigned char* writer;
+	char* writer;
 	int lenght;
-	writeFile.open(fileName.c_str(), ios::in|ios::binary);
+	writeFile.open(fileName.c_str(), ios::binary);
 
 	if (!writeFile.is_open()) {
 		//TODO: errore aprire il file
+		cout<<"[ERROR|upload] could not open the file"<<endl;
+		return;
 	}
-	
-	for(sizte_t writedBytes = 0; writedBytes < fileSize;){
+	size_t writedBytes;
+	for(writedBytes = 0; writedBytes < fileSize; writedBytes += lenght){
+		cout<<"[DEBUG] writedBites = " << writedBytes << endl;
 		lenght = receiveApart(&writer);
 		if(lenght <0){
 			break;
@@ -56,6 +59,7 @@ void uploadCommand(string fileName,size_t fileSize){
 		writeFile.write(writer, lenght);
 		free(writer);
 	}
+	cout<<"[DEBUG] writedBites = " << writedBytes << endl;
 	
 	if(lenght <0){
 		cout<<"[ERROR] Could not receive a part of the file ---> Client will be disconnected."<<endl;
@@ -73,7 +77,7 @@ stringstream reciveCommad(){
 	bytesRecived = server->recvMsg((void**)&rcvEncryptedPlainText);
 	if(bytesRecived == 0){//connessione chiusa dal client
 		cout<<"[INFO] Client disconnected."<<endl;
-		socketToManage = -1;
+		activeSocket = -1;
 		return res;
 	}
 	if(!msgCreator->DecryptAndCheckSign((unsigned char*)rcvEncryptedPlainText,bytesRecived,(unsigned char**) &command,commandSize)){
@@ -90,6 +94,7 @@ stringstream reciveCommad(){
 void manageConnection(){
 	stringstream commandStream;
 	string command;
+	cout<<"[INFO] Ready to receive a command"<<endl;
 	commandStream = reciveCommad();
 	commandStream>>command;
 	cout<<"[DEBUG command]'"<<command<<"'"<<endl;
@@ -97,8 +102,8 @@ void manageConnection(){
 		string filename;
 		size_t fileSize;
 		commandStream>>filename>>fileSize;
-		cout<<"[DEBUG filename]"<<filename<<endl;
-		cout<<"[DEBUG filesize]"<<fileSize<<endl;
+		//cout<<"[DEBUG filename]"<<filename<<endl;
+		//cout<<"[DEBUG filesize]"<<fileSize<<endl;
 		uploadCommand(filename,fileSize);
 	}
 	if(command=="rl"){
@@ -117,7 +122,7 @@ int main(int num_args, char* args[]){
 		exit(-2);
 	}
 	server = new ServerTCP(atoi(args[1]));
-	msgCreator = new SecureplainTextCreator();
+	msgCreator = new SecureMessageCreator();
 	activeSocket = -1;
 	for(;;){
 		cout<<"[INFO] Wainting for the client."<<endl;

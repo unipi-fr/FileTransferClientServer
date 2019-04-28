@@ -1,5 +1,6 @@
 #include "SecureMessageCreator.h"
 #include <iostream>
+#include <unistd.h>
 using namespace std;
 
 DH* SecureMessageCreator::get_dh2048(void)
@@ -76,11 +77,15 @@ unsigned char* SecureMessageCreator::sign(unsigned char *inBuf, int inLen){
   //Creazione del messaggio contesto digest
   HMAC_CTX* mdctx;
   mdctx = HMAC_CTX_new();
-
+  //cout<<"[DEBUG|sign] inizialization"<<endl;
   //Init,Update,Finalise digest
   HMAC_Init_ex(mdctx, _hmac_key, _hmacKeySize, _md, NULL);
 
-  while(HMAC_Update(mdctx, (unsigned char*) inBuf, inLen) == 1) {}
+  if(!HMAC_Update(mdctx, (unsigned char*) inBuf, inLen)){
+    //errore
+    cout<<"[SUPER ERRORE HMAC]"<<endl;
+  }
+
 
   HMAC_Final(mdctx, outBuf, (unsigned int*) &_hashSize);
 
@@ -98,15 +103,17 @@ int SecureMessageCreator::encrypt(unsigned char* plaintext, int plainTextLen, un
 
   /*Creazione del contesto*/
   context = EVP_CIPHER_CTX_new();
-
+  //cout<<"[DEBUG|encrypt] Inizialization "<<endl;
   //Inizializzione
   EVP_EncryptInit(context, EVP_aes_128_ecb(), _encrypt_key, iv);
-
+  int res = 5;
   //Encrypt update
-  while(EVP_EncryptUpdate(context, chipertext, &len, plaintext, plainTextLen) == 1){
+    if(!EVP_EncryptUpdate(context, chipertext, &len, plaintext, plainTextLen)){
+      cout<<"[SUPER ERRORE Encrypt]"<<endl;
+    }
     chiperTextLen += len;
-  }
-  
+    
+  //cout<<"[DEBUG|encrypt] final "<<endl;
   //Encrypt final: finalizza la cifratura
   EVP_EncryptFinal(context, chipertext+len, &len);
   chiperTextLen += len;
@@ -129,9 +136,10 @@ int SecureMessageCreator::decrypt(unsigned char* cipherText, int cipherTextLen, 
   EVP_DecryptInit(context, EVP_aes_128_ecb(), _encrypt_key, iv);
 
   //Encrypt update
-  while(EVP_DecryptUpdate(context, decryptedText, &len, cipherText, cipherTextLen) == 1){
-    decriptedTextLen += len;
+  if(!EVP_DecryptUpdate(context, decryptedText, &len, cipherText, cipherTextLen)){
+      cout<<"[SUPER ERRORE Encrypt]"<<endl;
   }
+  decriptedTextLen += len;
 
   //Encrypt final: finalizza la cifratura
   EVP_DecryptFinal(context, decryptedText+len, &len);
