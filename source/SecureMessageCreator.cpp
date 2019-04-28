@@ -1,6 +1,7 @@
 #include "SecureMessageCreator.h"
 #include <iostream>
 #include <unistd.h>
+#include <string.h>
 using namespace std;
 
 DH* SecureMessageCreator::get_dh2048(void)

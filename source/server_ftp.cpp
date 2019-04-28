@@ -22,7 +22,7 @@ void uploadCommand(string fileName)
 }
 
 void retriveListCommand()
-{
+{/*
 	cout << "[DEBUG] retrive list command successfull called" << endl;
 	cout << "[INFO] creating list" << endl;
 	system("stat -c \"%n - %s Bytes\" uploadedFile/* > fileList.txt");
@@ -41,7 +41,7 @@ void retriveListCommand()
 	}
 	cout << "[DEBUG] sending fileList.txt" << endl;
 	sendFile(readFile);
-	cout << "[DEBUG] fileList.txt sended" << endl;
+	cout << "[DEBUG] fileList.txt sended" << endl;*/
 }
 
 stringstream receiveCommad()
@@ -55,7 +55,11 @@ stringstream receiveCommad()
 		cout << "[ERROR] not possible retrive the command"<< endl;
 		return res;
 	}
-	
+	if(bytesRecived == 0){
+		cout << "[INFO] Client isconnected"<< endl;
+		_activeSocket = -1;
+		return res;
+	}	
 	cout << "[DEBUG msg]" << command << endl;
 	res << command;
 	
@@ -106,7 +110,7 @@ int main(int num_args, char *args[])
 	for (;;)
 	{
 		cout << "[INFO] Wainting for the client." << endl;
-		_activeSocket = server->acceptNewConnecction();
+		_activeSocket = _server->acceptNewConnecction();
 		if (_activeSocket >= 0)
 		{
 			cout << "[INFO] New client connected." << endl;

@@ -1,8 +1,5 @@
-#include <iostream>
-#include <string>
 #include "IClientServerTCP.h"
 #include "SecureMessageCreator.h"
-using namespace std;
 
 class SecureConnection
 {

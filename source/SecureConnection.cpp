@@ -1,4 +1,9 @@
 #include "SecureConnection.h"
+#include <iostream>
+#include <string>
+#include <fstream>
+#include <sstream>
+using namespace std;
 
 SecureConnection::SecureConnection(IClientServerTCP *csTCP)
 {
@@ -9,8 +14,8 @@ SecureConnection::SecureConnection(IClientServerTCP *csTCP)
 void SecureConnection::sendSecureMsg(void *buffer, size_t bufferSize)
 {
     unsigned char *secureMessage;
-    size_t msgSize = msgCreator->EncryptAndSignMessage((unsigned char *)buffer, buffSize, &secureMessage);
-    client->sendMsg(secureMessage, msgSize);
+    size_t msgSize = _sMsgCreator->EncryptAndSignMessage((unsigned char *)buffer, bufferSize, &secureMessage);
+    _csTCP->sendMsg(secureMessage, msgSize);
     free(secureMessage);
 }
 
@@ -18,16 +23,16 @@ int SecureConnection::recvSecureMsg(void **plainText)
 {
     int numberOfBytes;
     unsigned char *encryptedText;
-    numberOfBytes = server->recvMsg((void **)&encryptedText);
+    numberOfBytes = _csTCP->recvMsg((void **)&encryptedText);
 
     if (numberOfBytes == 0)
     {
-        return -1;
+        return 0;
     }
 
     int plainTextSize;
     //cout<<"[secureplainText]"<<encryptedText<<endl;
-    bool check = msgCreator->DecryptAndCheckSign(encryptedText, numberOfBytes, (unsigned char **)plainText, plainTextSize);
+    bool check = _sMsgCreator->DecryptAndCheckSign(encryptedText, numberOfBytes, (unsigned char **)plainText, plainTextSize);
 
     //cout<<"[plainText]"<<(*plainText)<<endl;
     if (!check)
@@ -40,16 +45,6 @@ int SecureConnection::recvSecureMsg(void **plainText)
     free(encryptedText);
 
     return plainTextSize;
-}
-
-void sendUploadCommand(string file, size_t fileSize)
-{
-    unsigned char *secureMessage;
-    stringstream ss;
-    ss << "u " << file << " " << fileSize;
-    string msg = ss.str();
-    size_t msgSize = msgCreator->EncryptAndSignMessage((unsigned char *)msg.c_str(), msg.length(), &secureMessage);
-    client->sendMsg(secureMessage, msgSize);
 }
 
 int SecureConnection::sendFile(const char *filename, bool stars)
@@ -71,7 +66,7 @@ int SecureConnection::sendFile(const char *filename, bool stars)
         return 0;
     }
     string strFileSize = to_string(fileSize);
-    sendSecureMsg(strFileSize.c_str(), strFileSize.length());
+    sendSecureMsg((void*)strFileSize.c_str(), strFileSize.length());
 
     readFile.seekg(0, ios::beg);
     size_t buffSize = 1024;
@@ -97,14 +92,15 @@ int SecureConnection::sendFile(const char *filename, bool stars)
                 for (int i = 0; i < partReaded / whenPrintCharacter; i++)
                     cout << "*" << flush;
                 partReaded = partReaded % whenPrintCharacter;
-                sleep(1);
             }
-            cout << endl;
             // *** :P :o 8====D {()} ***
         }
     }
+    if(stars)
+        cout << endl;
 
     readFile.close();
+    return fileSended;
 }
 
 int SecureConnection::receiveFile(const char *filename)
@@ -112,7 +108,7 @@ int SecureConnection::receiveFile(const char *filename)
     ofstream writeFile;
     char *writer;
     int lenght;
-    int lenght = recvSecureMsg((void **)&writer);
+    lenght = recvSecureMsg((void **)&writer);
 
     if (lenght < 0)
     {
@@ -121,15 +117,17 @@ int SecureConnection::receiveFile(const char *filename)
     }
 
     size_t fileSize;
-    string str = string(writer);
-    fileSize = str.strtoull();
+    stringstream ss;
+    ss << writer;
+    ss>>fileSize;
+    cout<<"[DEBUG] fileSize="<<writer<<" converted="<<fileSize<<endl;
     free(writer);
 
-    writeFile.open(fileName, ios::binary);
+    writeFile.open(filename, ios::binary);
     if (!writeFile.is_open())
     {
         //TODO: errore aprire il file
-        cout << "[ERROR|upload] could not open the file" << endl;
+        cout << "[ERROR|reciveFile] could not open the file" << endl;
         return -1;
     }
 

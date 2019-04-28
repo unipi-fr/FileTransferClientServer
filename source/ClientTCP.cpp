@@ -16,7 +16,7 @@ void ClientTCP::socketTCPInit(){
     _socketTCP = socket(AF_INET, SOCK_STREAM, 0);
 }
 
-ClientTCP::ClientTCP(char* ipServer, unsigned short serverPortNumber){
+ClientTCP::ClientTCP(const char* ipServer, unsigned short serverPortNumber){
     //TODO: Da decontaminare
     memset(_ipServer,0,DIM_IP);
     memcpy(_ipServer,ipServer,DIM_IP - 1);

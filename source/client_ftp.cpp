@@ -11,13 +11,13 @@ ClientTCP *_client;
 void sendUploadCommand(string file)
 {
     string msg = "u " + file;
-    _secureConnection->sendSecureMsg(msg.c_str(),msg.length());
+    _secureConnection->sendSecureMsg((void*)msg.c_str(),msg.length());
 }
 
 void sendRetriveListCommand()
 {
     string msg = "rl";
-    _secureConnection->sendSecureMsg(msg.c_str(),msg.length());
+    _secureConnection->sendSecureMsg((void*)msg.c_str(),msg.length());
 }
 
 void uploadCommand(string argument)
@@ -60,7 +60,7 @@ void helpCommand()
 
 void quitCommand()
 {
-    client->closeConnection();
+    _client->closeConnection();
     cout << "Closing program... Bye bye :)" << endl
          << endl;
 }

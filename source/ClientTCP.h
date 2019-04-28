@@ -12,7 +12,7 @@ private:
     void socketTCPInit(); 
 
 public:
-    ClientTCP(char* ipServer, unsigned short serverPortNumber);
+    ClientTCP(const char* ipServer, unsigned short serverPortNumber);
     bool serverTCPconnection();
     void closeConnection();
     void sendMsg(void *buffer, size_t bufferSize);
