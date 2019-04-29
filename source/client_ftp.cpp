@@ -11,41 +11,65 @@ ClientTCP *_client;
 void sendUploadCommand(string file)
 {
     string msg = "u " + file;
-    _secureConnection->sendSecureMsg((void*)msg.c_str(),msg.length());
+    _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length());
 }
 
 void sendRetriveListCommand()
 {
     string msg = "rl";
-    _secureConnection->sendSecureMsg((void*)msg.c_str(),msg.length());
+    _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length());
+}
+
+void sendRetriveFileCommand(string file)
+{
+    string msg = "rf " + file;
+    _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length());
 }
 
 void uploadCommand(string argument)
 {
     cout << "[DEBUG] entering uppload command" << endl;
-    
+
     sendUploadCommand(argument);
     cout << "[DEBUG] command sended" << endl;
-    
+
     int ret = _secureConnection->sendFile(argument.c_str(), true);
-    if(ret == 0){
-        cout<<"[ERROR] server sended an empty file"<<endl;
+    if (ret == 0)
+    {
+        cout << "[ERROR] server sended an empty file" << endl; // ??
     }
-    if(ret < 0 ){
-        cout<<"[ERROR] uploading the file"<<endl;
+    if (ret < 0)
+    {
+        cout << "[ERROR] uploading the file" << endl;
     }
 }
 
 void retriveListCommand()
 {
     cout << "Called 'Retrive-List'" << endl;
+
     sendRetriveListCommand();
+    cout << "[DEBUG] command sended" << endl;
 }
 
-void retriveFileCommand()
+void retriveFileCommand(string filename)
 {
-    cout << "Called 'Retrive-File', not implemented yet :(" << endl
-         << endl;
+    /*cout << "Called 'Retrive-File', not implemented yet :(" << endl
+         << endl;*/
+    cout << "Called 'Retrive-File'" << endl;
+
+    sendRetriveFileCommand();
+    cout << "[DEBUG] command sended" << endl;
+
+    int ret = _secureConnection->receiveFile(filename);
+    if (ret == 0)
+    {
+        cout << "[ERROR] server sended an empty file" << endl; // ??
+    }
+    if (ret < 0)
+    {
+        cout << "[ERROR] downloading the file" << endl;
+    }
 }
 
 void helpCommand()
@@ -90,10 +114,11 @@ int main(int num_args, char *args[])
 
     if (!_client->serverTCPconnection())
     {
-        cout<<endl<<"ERROR connect(): Failed connect to the server."<<endl;
+        cout << endl
+             << "ERROR connect(): Failed connect to the server." << endl;
         exit(-5);
     }
-    cout<<"Successfull connected to the server "<<ipServer<<" (PORT: "<<portNumber<<")"<<endl;
+    cout << "Successfull connected to the server " << ipServer << " (PORT: " << portNumber << ")" << endl;
 
     _secureConnection = new SecureConnection(_client);
 
@@ -122,7 +147,8 @@ int main(int num_args, char *args[])
         }
         if (command == "rf" || command == "retrive-file")
         {
-            retriveFileCommand();
+            cin >> argument;
+            retriveFileCommand(argument);
         }
         if (command == "h" || command == "help")
         {
@@ -133,6 +159,8 @@ int main(int num_args, char *args[])
             quitCommand();
             break;
         }
+
+        cin.ignore(INT_MAX);
     }
 
     return 0;

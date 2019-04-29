@@ -44,6 +44,16 @@ void retriveListCommand()
 	cout << "[DEBUG] fileList.txt sended" << endl;*/
 }
 
+void retriveFileCommand(string fileName) 
+{
+	string pathFileName = "uploadedFile/" + fileName;
+	int res = _secureConnection->sendFile(pathFileName.c_str(), false);
+	if(res < 0){
+		_activeSocket = -1;
+		_server->forceClientDisconnection();
+	}
+}
+
 stringstream receiveCommad()
 {
 	stringstream res;
@@ -72,13 +82,14 @@ void manageConnection()
 {
 	stringstream commandStream;
 	string command;
+	string filename;
+
 	cout << "[INFO] Ready to receive a command" << endl;
 	commandStream = receiveCommad();
 	commandStream >> command;
 	cout << "[DEBUG command]'" << command << "'" << endl;
 	if (command == "u")
 	{
-		string filename;
 		commandStream >> filename;
 		//cout<<"[DEBUG filename]"<<filename<<endl;
 		//cout<<"[DEBUG filesize]"<<fileSize<<endl;
@@ -90,7 +101,8 @@ void manageConnection()
 	}
 	if (command == "rf")
 	{
-		//retriveFileCommand();
+		commandStream >> filename;
+		retriveFileCommand(filename);
 	}
 }
 
