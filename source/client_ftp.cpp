@@ -122,6 +122,7 @@ int main(int num_args, char *args[])
 
     _secureConnection = new SecureConnection(_client);
 
+    stringstream commandStream;
     string input;
     string command;
     string argument;
@@ -133,12 +134,15 @@ int main(int num_args, char *args[])
     {
 
         cout << "$> ";
-        cin >> command;
+        getline(cin,command);
+        cout<<"[DEBUG|getline]"<<command<<endl;
+        commandStream << command;
+        commandStream >> command;
         cout << endl;
-
+        cout<<"[DEBUG|command]"<<command<<endl;
         if (command == "u" || command == "upload")
         {
-            cin >> argument;
+            commandStream >> argument;
             uploadCommand(argument);
         }
         if (command == "rl" || command == "retrive-list")
@@ -160,7 +164,9 @@ int main(int num_args, char *args[])
             break;
         }
 
-        cin.ignore(INT_MAX);
+        //cin.ignore(INT_MAX);
+        //cin.clear();
+        commandStream.str("");
     }
 
     return 0;

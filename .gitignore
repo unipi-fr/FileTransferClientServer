@@ -1,8 +1,15 @@
+#rxcluded folders
 .vscode/
+uploadedFiles/
+downloadedFiles/
+client/
+server/
+
+#excluded files
 *.txt
 server_ftp
 client_ftp
-uploadedFiles
+
 
 # Prerequisites
 *.d

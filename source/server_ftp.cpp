@@ -13,7 +13,8 @@ int _activeSocket;
 
 void uploadCommand(string fileName)
 {
-	string pathFileName = "uploadedFile/" + fileName;
+	system("mkdir -p uploadedFiles");
+	string pathFileName = "uploadedFiles/" + fileName;
 	int res = _secureConnection->receiveFile(pathFileName.c_str());
 	if(res < 0){
 		_activeSocket = -1;

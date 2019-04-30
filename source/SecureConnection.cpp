@@ -128,6 +128,7 @@ int SecureConnection::receiveFile(const char *filename)
     {
         //TODO: errore aprire il file
         cout << "[ERROR|reciveFile] could not open the file" << endl;
+        writeFile.close();
         return -1;
     }
 
@@ -139,12 +140,13 @@ int SecureConnection::receiveFile(const char *filename)
         if (lenght < 0)
         {
             cout << "[ERROR] Could not receive a part of the file ---> Client will be disconnected." << endl;
+            writeFile.close();
             return -1;
         }
         writeFile.write(writer, lenght);
         free(writer);
     }
     cout << "[DEBUG] writedBites = " << writedBytes << endl;
-
+    writeFile.close();
     return writedBytes;
 }
