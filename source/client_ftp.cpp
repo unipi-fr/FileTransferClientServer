@@ -58,10 +58,10 @@ void retriveFileCommand(string filename)
          << endl;*/
     cout << "Called 'Retrive-File'" << endl;
 
-    sendRetriveFileCommand();
+    sendRetriveFileCommand(filename);
     cout << "[DEBUG] command sended" << endl;
 
-    int ret = _secureConnection->receiveFile(filename);
+    int ret = _secureConnection->receiveFile(filename.c_str());
     if (ret == 0)
     {
         cout << "[ERROR] server sended an empty file" << endl; // ??

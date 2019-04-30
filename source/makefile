@@ -10,7 +10,7 @@ client_ftp: $(CLIENT_OBJ)
 	g++ -o client_ftp client_ftp.cpp $(CLIENT_LIBS) $(CLIENT_OBJ) -lcrypto
 	
 server_ftp: $(SERVER_OBJ)
-	g++ -o server_ftp server_ftp.cpp $(SERVER_LIBS) $(SERVER_OBJ) -lcrypto
+	g++ -o ../server_ftp server_ftp.cpp $(SERVER_LIBS) $(SERVER_OBJ) -lcrypto
 .c.o:
 	g++ -c $<
 
