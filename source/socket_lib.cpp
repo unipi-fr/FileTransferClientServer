@@ -32,7 +32,7 @@ int recvTCP(int listenSocket, void** buffer){
         return 0;
     }
     if(numberOfBytes == -1){
-        std::cout<<"ERRORE recv()"<<std::endl;
+        std::cout<<"ERRORE recv() (1)"<<std::endl;
         exit(-5);
     }
     
@@ -44,7 +44,7 @@ int recvTCP(int listenSocket, void** buffer){
     //uso la lunghezzaPrecisa per ricevere la stringa
     numberOfBytes = recv(listenSocket, (void*)(*buffer), bufferSize, 0);
     if(numberOfBytes == -1){
-        std::cout<<"ERRORE recv()"<<std::endl;
+        std::cout<<"ERRORE recv() (2)"<<std::endl;
         exit(-5);
     }
     return numberOfBytes;

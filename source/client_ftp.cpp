@@ -1,8 +1,6 @@
 #include "SecureConnection.h"
 #include "ClientTCP.h"
-#include <iostream>
-#include <fstream>
-#include <sstream>
+#include <limits.h>
 using namespace std;
 
 SecureConnection *_secureConnection;
@@ -35,7 +33,7 @@ void uploadCommand(string argument)
     if (!readFile.is_open())
     {
         //error open
-        cerr << "[ERORR] file doesn't exists";
+        cerr << "[ERORR] file doesn't exists"<<endl;
         return;
     }
 
@@ -135,14 +133,12 @@ int main(int num_args, char *args[])
         exit(-5);
     }
     cout << "Successfull connected to the server " << ipServer << " (PORT: " << portNumber << ")" << endl;
-    cerr<<"TEST CERR"<<endl;
 
     _secureConnection = new SecureConnection(_client);
 
-    stringstream commandStream;
-    string input;
     string command;
     string argument;
+    string garb;
     size_t pos = 0;
 
     bool exit = false;
@@ -151,15 +147,11 @@ int main(int num_args, char *args[])
     {
 
         cout << "$> ";
-        getline(cin,command);
-        cout<<"[DEBUG|getline]"<<command<<endl;
-        commandStream << command;
-        commandStream >> command;
-        cout << endl;
+        cin>>command;
         cout<<"[DEBUG|command]"<<command<<endl;
         if (command == "u" || command == "upload")
         {
-            commandStream >> argument;
+            cin >> argument;
             uploadCommand(argument);
         }
         if (command == "rl" || command == "retrive-list")
@@ -180,10 +172,7 @@ int main(int num_args, char *args[])
             quitCommand();
             break;
         }
-
-        //cin.ignore(INT_MAX);
-        //cin.clear();
-        commandStream.str("");
+        getline(cin,garb);
     }
 
     return 0;

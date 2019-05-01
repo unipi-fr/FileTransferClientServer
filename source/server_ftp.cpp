@@ -26,9 +26,10 @@ void retriveListCommand()
 {
 	cout << "[DEBUG] retrive list command successfull called" << endl;
 	cout << "[INFO] creating list" << endl;
-	system("stat -c \"%n - %s Bytes\" uploadedFile/* > fileList.txt");
+	system("stat -c \"%n - %s Bytes\" uploadedFiles/* > fileList.txt");
 
 	cout << "[DEBUG] opening file" << endl;
+	ifstream readFile;
 	readFile.open("fileList.txt", ios::in | ios::binary);
 	if (readFile.is_open())
 	{
@@ -41,7 +42,7 @@ void retriveListCommand()
 		return;
 	}
 	cout << "[DEBUG] sending fileList.txt" << endl;
-	_secureConnection->sendFile(readFile, false);
+	int ret = _secureConnection->sendFile(readFile, false);
 	if (ret < 0)
     {
         cerr << "[ERROR] sending the list of file" << endl;
@@ -52,8 +53,15 @@ void retriveListCommand()
 
 void retriveFileCommand(string fileName) 
 {
-	string pathFileName = "uploadedFile/" + fileName;
-	int res = _secureConnection->sendFile(pathFileName.c_str(), false);
+	string pathFileName = "uploadedFiles/" + fileName;
+	ifstream readStream;
+	readStream.open(pathFileName.c_str(),ios::in | ios::binary);
+	if(!readStream.is_open()){
+		//TODO: avvisare il server che il file non esiste
+		cerr<<"[ERROR] not possible open the file."<<endl;
+		return;
+	}
+	int res = _secureConnection->sendFile(readStream, false);
 	if(res < 0){
 		_activeSocket = -1;
 		_server->forceClientDisconnection();

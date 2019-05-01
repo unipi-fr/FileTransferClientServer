@@ -6,6 +6,7 @@ client/
 server/
 
 #excluded files
+*.mp4
 *.txt
 server_ftp
 client_ftp

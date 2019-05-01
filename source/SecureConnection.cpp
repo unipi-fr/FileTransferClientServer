@@ -1,8 +1,8 @@
 #include "SecureConnection.h"
-#include <iostream>
 #include <string>
-#include <fstream>
 #include <sstream>
+#include <unistd.h>
+#include <string.h>
 using namespace std;
 
 SecureConnection::SecureConnection(IClientServerTCP *csTCP)
@@ -49,41 +49,46 @@ int SecureConnection::recvSecureMsg(void **plainText)
 
 int SecureConnection::sendFile(ifstream &file, bool stars)
 {
-    if (file.is_open())
+    if (!file.is_open())
     {
         cout << "[ERROR|sendFile] file is not open" << endl;
         return -1;
     }
-
+    file.seekg(0, ios::end);
     // obtain and send file size
     int fileSize = file.tellg();
     if (fileSize == 0)
     {
-        cout << "[DEBUG] attempt to send an Empty file" << endl;
-        return 0;
+        cout << "[INFO] attempt to send an Empty file" << endl;
+        //return 0;
     }
     string strFileSize = to_string(fileSize);
     sendSecureMsg((void *)strFileSize.c_str(), strFileSize.length());
 
     file.seekg(0, ios::beg);
-    size_t buffSize = 1024;
-    char *buffer = new char[buffSize];
+    char buffer[BUFF_SIZE];
 
     size_t whenPrintCharacter = fileSize / 80;
     size_t partReaded = 0;
     size_t fileSended = 0;
 
+    cout << "[DEBUG] fileSize="<< fileSize << endl;
+    if(fileSize == 0){
+        return fileSended;
+    }
     while (!file.eof())
     {
-        file.read(buffer, buffSize);
+        cout << "[DEBUG] fileSended = " << fileSended << endl;
+        file.read(buffer, BUFF_SIZE);
         size_t readedBytes = file.gcount();
         sendSecureMsg(buffer, readedBytes);
 
+        fileSended += readedBytes;
         //the following code prints * characters
-        if (stars)
+        /*if (stars)
         {
             partReaded += readedBytes;
-            fileSended += readedBytes;
+            
             if (whenPrintCharacter > 0 && partReaded >= whenPrintCharacter)
             {
                 for (int i = 0; i < partReaded / whenPrintCharacter; i++)
@@ -91,10 +96,13 @@ int SecureConnection::sendFile(ifstream &file, bool stars)
                 partReaded = partReaded % whenPrintCharacter;
             }
             // *** :P :o 8====D {()} ***
-        }
+        }*/
+        memset(buffer,0,BUFF_SIZE);
+        sleep(1);
     }
+    /*
     if (stars)
-        cout << endl;
+        cout << endl;*/
 
     return fileSended;
 }
@@ -173,7 +181,6 @@ int SecureConnection::reciveAndPrintBigMessage()
         if (lenght < 0)
         {
             cerr << "[ERROR] Could not receive a part of the message ---> Client will be disconnected." << endl;
-            writeFile.close();
             return -1;
         }
         cout<<writer;

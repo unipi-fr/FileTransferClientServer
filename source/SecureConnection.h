@@ -1,5 +1,8 @@
 #include "IClientServerTCP.h"
 #include "SecureMessageCreator.h"
+#include <fstream>
+
+#define BUFF_SIZE 16384
 
 class SecureConnection
 {
@@ -21,7 +24,7 @@ public:
      * 
      * A call with a stream closed will return -1
      */
-    int sendFile(ifstream &file, bool stars);
+    int sendFile(std::ifstream &file, bool stars);
     int receiveFile(const char *filename);
     int reciveAndPrintBigMessage();
 };
