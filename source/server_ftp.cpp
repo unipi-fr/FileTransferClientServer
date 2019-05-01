@@ -23,7 +23,7 @@ void uploadCommand(string fileName)
 }
 
 void retriveListCommand()
-{/*
+{
 	cout << "[DEBUG] retrive list command successfull called" << endl;
 	cout << "[INFO] creating list" << endl;
 	system("stat -c \"%n - %s Bytes\" uploadedFile/* > fileList.txt");
@@ -36,13 +36,18 @@ void retriveListCommand()
 	}
 	else
 	{
-		cout << "[ERROR] could not open the file." << endl;
+		cerr << "[ERROR] could not open the file." << endl;
 		readFile.close();
 		return;
 	}
 	cout << "[DEBUG] sending fileList.txt" << endl;
-	sendFile(readFile);
-	cout << "[DEBUG] fileList.txt sended" << endl;*/
+	_secureConnection->sendFile(readFile, false);
+	if (ret < 0)
+    {
+        cerr << "[ERROR] sending the list of file" << endl;
+    }
+
+	cout << "[DEBUG] fileList.txt sended" << endl;
 }
 
 void retriveFileCommand(string fileName) 

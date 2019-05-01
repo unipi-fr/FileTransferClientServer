@@ -30,19 +30,29 @@ void uploadCommand(string argument)
 {
     cout << "[DEBUG] entering uppload command" << endl;
 
+    ifstream readFile;
+    readFile.open(argument.c_str(), ios::in | ios::binary | ios::ate);
+    if (!readFile.is_open())
+    {
+        //error open
+        cerr << "[ERORR] file doesn't exists";
+        return;
+    }
+
     sendUploadCommand(argument);
     cout << "[DEBUG] command sended" << endl;
 
-    int ret = _secureConnection->sendFile(argument.c_str(), true);
+    int ret = _secureConnection->sendFile(readFile, true);
     if (ret == 0)
     {
-        cout << "[ERROR] server sended an empty file" << endl; // ??
+        cerr << "[ERROR] server sended an empty file" << endl; // ??
     }
     if (ret < 0)
     {
-        cout << "[ERROR] uploading the file" << endl;
+        cerr << "[ERROR] uploading the file" << endl;
     }
 }
+
 
 void retriveListCommand()
 {
@@ -50,6 +60,12 @@ void retriveListCommand()
 
     sendRetriveListCommand();
     cout << "[DEBUG] command sended" << endl;
+    
+    int ret = _secureConnection->reciveAndPrintBigMessage();
+    if (ret < 0)
+    {
+        cerr << "[ERROR] receiving the list of file" << endl;
+    }
 }
 
 void retriveFileCommand(string filename)
@@ -64,11 +80,11 @@ void retriveFileCommand(string filename)
     int ret = _secureConnection->receiveFile(filename.c_str());
     if (ret == 0)
     {
-        cout << "[ERROR] server sended an empty file" << endl; // ??
+        cerr << "[ERROR] server sended an empty file" << endl; // ??
     }
     if (ret < 0)
     {
-        cout << "[ERROR] downloading the file" << endl;
+        cerr << "[ERROR] downloading the file" << endl;
     }
 }
 
@@ -99,7 +115,7 @@ int main(int num_args, char *args[])
     /*LETTURA PARAMETRI*/
     if (num_args != 3)
     {
-        cout << "ERROR: Number of parameters are not valid." << endl;
+        cerr << "[ERROR] Number of parameters are not valid." << endl;
         cout << "Usage: " << args[0] << " <_ipServer> <SERVER_PORT_#>" << endl;
         cout << "Closing program..." << endl
              << endl;
@@ -115,10 +131,11 @@ int main(int num_args, char *args[])
     if (!_client->serverTCPconnection())
     {
         cout << endl
-             << "ERROR connect(): Failed connect to the server." << endl;
+             << "[ERROR] connect(): Failed connect to the server." << endl;
         exit(-5);
     }
     cout << "Successfull connected to the server " << ipServer << " (PORT: " << portNumber << ")" << endl;
+    cerr<<"TEST CERR"<<endl;
 
     _secureConnection = new SecureConnection(_client);
 

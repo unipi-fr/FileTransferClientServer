@@ -47,28 +47,25 @@ int SecureConnection::recvSecureMsg(void **plainText)
     return plainTextSize;
 }
 
-int SecureConnection::sendFile(const char *filename, bool stars)
+int SecureConnection::sendFile(ifstream &file, bool stars)
 {
-    ifstream readFile;
-    readFile.open(filename, ios::in | ios::binary | ios::ate);
-    if (!readFile.is_open())
+    if (file.is_open())
     {
-        //error open
-        cout << "[DEBUG] Error open file";
+        cout << "[ERROR|sendFile] file is not open" << endl;
         return -1;
     }
 
     // obtain and send file size
-    int fileSize = readFile.tellg();
+    int fileSize = file.tellg();
     if (fileSize == 0)
     {
         cout << "[DEBUG] attempt to send an Empty file" << endl;
         return 0;
     }
     string strFileSize = to_string(fileSize);
-    sendSecureMsg((void*)strFileSize.c_str(), strFileSize.length());
+    sendSecureMsg((void *)strFileSize.c_str(), strFileSize.length());
 
-    readFile.seekg(0, ios::beg);
+    file.seekg(0, ios::beg);
     size_t buffSize = 1024;
     char *buffer = new char[buffSize];
 
@@ -76,10 +73,10 @@ int SecureConnection::sendFile(const char *filename, bool stars)
     size_t partReaded = 0;
     size_t fileSended = 0;
 
-    while (!readFile.eof())
+    while (!file.eof())
     {
-        readFile.read(buffer, buffSize);
-        size_t readedBytes = readFile.gcount();
+        file.read(buffer, buffSize);
+        size_t readedBytes = file.gcount();
         sendSecureMsg(buffer, readedBytes);
 
         //the following code prints * characters
@@ -96,10 +93,9 @@ int SecureConnection::sendFile(const char *filename, bool stars)
             // *** :P :o 8====D {()} ***
         }
     }
-    if(stars)
+    if (stars)
         cout << endl;
 
-    readFile.close();
     return fileSended;
 }
 
@@ -119,8 +115,8 @@ int SecureConnection::receiveFile(const char *filename)
     size_t fileSize;
     stringstream ss;
     ss << writer;
-    ss>>fileSize;
-    cout<<"[DEBUG] fileSize="<<writer<<" converted="<<fileSize<<endl;
+    ss >> fileSize;
+    cout << "[DEBUG] fileSize=" << writer << " converted=" << fileSize << endl;
     free(writer);
 
     writeFile.open(filename, ios::binary);
@@ -148,5 +144,43 @@ int SecureConnection::receiveFile(const char *filename)
     }
     cout << "[DEBUG] writedBites = " << writedBytes << endl;
     writeFile.close();
+    return writedBytes;
+}
+
+int SecureConnection::reciveAndPrintBigMessage()
+{
+    char *writer;
+    int lenght;
+    lenght = recvSecureMsg((void **)&writer);
+
+    if (lenght < 0)
+    {
+        cerr << "[ERROR] errore recv message size" << endl;
+        return -1;
+    }
+
+    size_t fileSize;
+    stringstream ss;
+    ss << writer;
+    ss >> fileSize;
+    cout << "[DEBUG] fileSize=" << writer << " converted=" << fileSize << endl;
+    free(writer);
+
+    size_t writedBytes;
+    for (writedBytes = 0; writedBytes < fileSize; writedBytes += lenght)
+    {
+        lenght = recvSecureMsg((void **)&writer);
+        if (lenght < 0)
+        {
+            cerr << "[ERROR] Could not receive a part of the message ---> Client will be disconnected." << endl;
+            writeFile.close();
+            return -1;
+        }
+        cout<<writer;
+        free(writer);
+    }
+    cout<<endl;
+    
+    cout << "[DEBUG] writedBites = " << writedBytes << endl;
     return writedBytes;
 }

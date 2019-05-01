@@ -11,6 +11,17 @@ public:
     SecureConnection(IClientServerTCP *csTCP);
     void sendSecureMsg(void *buffer, size_t bufferSize);
     int recvSecureMsg(void **plainText);
-    int sendFile(const char *filename, bool stars);
+
+    /**
+     * sendFile send a file.
+     *
+     * @file need an open filestream.
+     * @stars if true prints 80 * on the screen
+     * @return the fileSize on success or -1 on error.
+     * 
+     * A call with a stream closed will return -1
+     */
+    int sendFile(ifstream &file, bool stars);
     int receiveFile(const char *filename);
+    int reciveAndPrintBigMessage();
 };
