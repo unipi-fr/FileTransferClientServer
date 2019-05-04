@@ -3,7 +3,7 @@
 #include <exception>
 #include <fstream>
 
-#define BUFF_SIZE 16335
+#define BUFF_SIZE 128
 
 class SecureConnectionException : public std::exception
 {

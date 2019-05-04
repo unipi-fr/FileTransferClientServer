@@ -1,5 +1,6 @@
 #include "socket_lib.h"
 #include "IClientServerTCP.h"
+#include <netinet/in.h>	//socket (strutture)
 
 class ServerTCP : public IClientServerTCP{
 private:

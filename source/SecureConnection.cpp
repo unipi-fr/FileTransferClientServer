@@ -24,20 +24,13 @@ void SecureConnection::sendSecureMsgWithAck(void *buffer, size_t bufferSize)
 {
     sendSecureMsg(buffer, bufferSize);
 
-    int ret;
     char *ack;
-
-    try
-    {
-        ret = recvSecureMsg((void **)&ack);
-    }
-    catch (const exception &e)
-    {
-        free(ack);
+    recvSecureMsg((void **)&ack);
+    string ackStr = ack;
+    free(ack);
+    if(ackStr != "OK"){
         throw ErrorOnOtherPartException();
     }
-
-    free(ack);
 }
 
 int SecureConnection::recvSecureMsg(void **plainText)
@@ -50,6 +43,8 @@ int SecureConnection::recvSecureMsg(void **plainText)
     //cout<<"[secureplainText]"<<encryptedText<<endl;
     bool check = _sMsgCreator->DecryptAndCheckSign(encryptedText, numberOfBytes, (unsigned char **)plainText, plainTextSize);
 
+    free(encryptedText);
+
     //cout<<"[plainText]"<<(*plainText)<<endl;
     if (!check)
     {
@@ -57,16 +52,15 @@ int SecureConnection::recvSecureMsg(void **plainText)
     }
     //cout<<"[INFO] hash OK!"<<endl;
 
-    free(encryptedText);
-
     return plainTextSize;
 }
 
 int SecureConnection::recvSecureMsgWithAck(void **plainText)
 {
+    int ret;
     try
     {
-        recvSecureMsg(plainText);
+        ret = recvSecureMsg(plainText);
     }
     catch (const HashNotValidException &hnve)
     {
@@ -75,11 +69,12 @@ int SecureConnection::recvSecureMsgWithAck(void **plainText)
     }
 
     sendSecureMsg((void *)"OK", 3);
+    return ret;
 }
 
 int SecureConnection::sendFile(ifstream &file, bool stars)
 {
-    send if (!file.is_open())
+    if (!file.is_open())
     {
         throw FileNotOpenException();
     }
@@ -113,7 +108,9 @@ int SecureConnection::sendFile(ifstream &file, bool stars)
         file.read(buffer, BUFF_SIZE);
         size_t readedBytes = file.gcount();
 
-        sendSecureMsgWithAck(buffer, BUFF_SIZE);
+
+        //sendSecureMsgWithAck(buffer, readedBytes);
+        sendSecureMsg(buffer, readedBytes);
 
         fileSended += readedBytes;
         cout << "[INFO] fileSended = " << fileSended << endl;
@@ -165,16 +162,8 @@ int SecureConnection::receiveFile(const char *filename)
     size_t writedBytes;
     for (writedBytes = 0; writedBytes < fileSize; writedBytes += lenght)
     {
-        try
-        {
-            lenght = recvSecureMsgWithAck((void **)&writer);
-        }
-        catch (const exception &e)
-        {
-            free(writer);
-            writeFile.close();
-            throw e;
-        }
+        //lenght = recvSecureMsgWithAck((void **)&writer);
+        lenght = recvSecureMsg((void **)&writer);
 
         cout << "[DEBUG] writedBites = " << writedBytes + lenght << endl;
 
@@ -201,22 +190,14 @@ int SecureConnection::reciveAndPrintBigMessage()
     ss >> fileSize;
     free(writer);
     
-    cout << "[INFO] fileSize = "fileSize << endl;
+    cout << "[INFO] fileSize = "<<fileSize << endl;
     
 
     size_t writedBytes;
     for (writedBytes = 0; writedBytes < fileSize; writedBytes += lenght)
     {
-        try
-        {
-            lenght = recvSecureMsgWithAck((void **)&writer);
-        }
-        catch (const exception &e)
-        {
-            free(writer);
-            writeFile.close();
-            throw e;
-        }
+        //lenght = recvSecureMsgWithAck((void **)&writer);
+        lenght = recvSecureMsg((void **)&writer);
         
         cout << writer;
         free(writer);

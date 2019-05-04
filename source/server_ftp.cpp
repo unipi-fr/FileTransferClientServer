@@ -14,7 +14,7 @@ void uploadCommand(string fileName)
 {
 	string cmd;
 	system("mkdir -p uploadedFiles");
-	string tmpFile = string(rand()) + ".tmp";
+	string tmpFile  = "tmp.txt";
 
 	try
 	{
@@ -24,19 +24,19 @@ void uploadCommand(string fileName)
 	{
 		cerr << "[ERROR] A network error has occoured downloading the file" << endl;
 		cmd = "rm " + tmpFile;
-		system(cmd);
+		system(cmd.c_str());
 		return;
 	}
 	catch (const HashNotValidException &hnve)
 	{
 		cerr << "[ERROR] Failed to download a part of the file (Hash was not valid)" << endl;
 		cmd = "rm " + tmpFile;
-		system(cmd);
+		system(cmd.c_str());
 		return;
 	}
 
 	cmd = "mv " + tmpFile + " uploadedFiles/" + fileName;
-	system(cmd);
+	system(cmd.c_str());
 }
 
 void retriveListCommand()
@@ -64,13 +64,13 @@ void retriveListCommand()
 	catch (const NetworkException &ne)
 	{
 		cerr << "[ERROR] A network error has occoured sending the dile list" << endl;
-		return;
 	}
 	catch (const ErrorOnOtherPartException &eope)
 	{
 		cerr << "[ERROR] Failed to upload a part of the file list (Hash was not valid)" << endl;
-		return;
 	}
+
+	system("rm fileList.txt");
 
 	cout << "[INFO] fileList sended" << endl;
 }
@@ -78,6 +78,7 @@ void retriveListCommand()
 void retriveFileCommand(string fileName)
 {
 	string pathFileName = "uploadedFiles/" + fileName;
+	cout<<"[DEBUGpathfileRF]"<<pathFileName<<endl;
 	ifstream readFile;
 	readFile.open(pathFileName.c_str(), ios::in | ios::binary);
 	if (!readFile.is_open())

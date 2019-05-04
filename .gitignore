@@ -4,6 +4,7 @@ uploadedFiles/
 downloadedFiles/
 client/
 server/
+tmp/
 
 #excluded files
 *.mp4

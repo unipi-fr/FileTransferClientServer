@@ -1,4 +1,10 @@
 #include "ClientTCP.h"
+#include <string.h>	//per gestire le stringhe
+#include <sys/types.h> //socket (costantie valori)
+#include <sys/socket.h>	//socket (funzioni)
+#include <arpa/inet.h>	//standard per l'ordine dei byte
+#include <unistd.h>
+
 
 void ClientTCP::serverStructInit()
 {

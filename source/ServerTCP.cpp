@@ -2,6 +2,11 @@
 #include <iostream>
 #include <time.h>   //per la select()
 #include <unistd.h> //close(socket)
+
+#include <string.h>	//per gestire le stringhe
+#include <sys/types.h> //socket (costantie valori)
+#include <sys/socket.h>	//socket (funzioni)
+#include <arpa/inet.h>	//standard per l'ordine dei byte
 using namespace std;
 
 void ServerTCP::localAddrStructInit(void)

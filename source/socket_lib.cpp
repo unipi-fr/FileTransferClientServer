@@ -1,10 +1,6 @@
 #include "socket_lib.h"
-#include<string.h>	//per gestire le stringhe
-#include<stdlib.h> 	//funzioni dilibreria standard (atoi,)
-#include<sys/types.h>	//socket (costantie valori)
-#include<sys/socket.h>	//socket (funzioni)
-#include<netinet/in.h>	//socket (strutture)
 #include<arpa/inet.h>	//standard per l'ordine dei byte
+#include <stdlib.h> 
 
 
 
@@ -17,13 +13,13 @@ void sendTCP(int sendSocket, void *buffer, size_t bufferSize){
     //invio numero di dati
     numberOfBytes = send(sendSocket,(void*)&standardSize, sizeof(uint16_t),0);
     if(numberOfBytes == -1){
-        throw NetworkException();
+        throw DisconnectionException();
     }
     
     //invio dati
     numberOfBytes = send(sendSocket, (void*)buffer, bufferSize, 0);
     if(numberOfBytes == -1){
-        throw NetworkException();
+        throw DisconnectionException();
     }
 }
 

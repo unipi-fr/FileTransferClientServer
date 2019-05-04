@@ -94,6 +94,9 @@ void retriveListCommand()
 
 void retriveFileCommand(string filename)
 {
+    system("mkdir -p tmp");
+	string tmpFile  = "tmp/tmp.txt";
+    string cmd;
     //cout << "Called 'Retrive-File'" << endl;
     try
     {
@@ -108,7 +111,7 @@ void retriveFileCommand(string filename)
 
     try
     {
-        _secureConnection->receiveFile(filename.c_str());
+        _secureConnection->receiveFile(tmpFile.c_str());
     }
     catch (const NetworkException &ne)
     {
@@ -118,6 +121,8 @@ void retriveFileCommand(string filename)
     {
         cerr << "[ERROR] Failed to download a part of the file (Hash was not valid)" << endl;
     }
+    cmd = "mv " + tmpFile+ " " + filename;
+	system(cmd.c_str());
 }
 
 void helpCommand()
