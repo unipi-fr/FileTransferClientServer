@@ -14,6 +14,7 @@ SecureConnection::SecureConnection(IClientServerTCP *csTCP)
 void SecureConnection::sendSecureMsg(void *buffer, size_t bufferSize)
 {
     unsigned char *secureMessage;
+    //cout<<"[DEBUGsendMSG]"<<(char*)buffer<<endl;
     size_t msgSize = _sMsgCreator->EncryptAndSignMessage((unsigned char *)buffer, bufferSize, &secureMessage);
     _csTCP->sendMsg(secureMessage, msgSize);
     free(secureMessage);
@@ -52,7 +53,7 @@ int SecureConnection::sendFile(ifstream &file, bool stars)
     if (!file.is_open())
     {
         cout << "[ERROR|sendFile] file is not open" << endl;
-        return -1;
+        return -2;
     }
     file.seekg(0, ios::end);
     // obtain and send file size
@@ -77,32 +78,36 @@ int SecureConnection::sendFile(ifstream &file, bool stars)
     if(fileSize == 0){
         return fileSended;
     }
-    while (!file.eof())
+    while (!file.eof() && fileSended<fileSize)
     {
         memset(buffer,0,BUFF_SIZE);
-        cout << "[DEBUG] fileSended = " << fileSended << endl;
         file.read(buffer, BUFF_SIZE);
         size_t readedBytes = file.gcount();
         sendSecureMsg(buffer, readedBytes);
         int ret =  recvSecureMsg((void**) &ack);
+        //cout<<"[DEBUGsendfile-ack - ret]"<<ack<<" - "<<ret<<endl;
         if(ret == 0){
             //server/client disconnected
-            cout<<"[INFO] server/client disconnected."<<<endl;
-            return 0;
+            cout<<"[INFO] server/client disconnected."<<endl;
+            free(ack);
+            return -1;
         }
         if(ret < 0){
             //Error RCV
             cerr<<"[ERROR] recive secure message falied."<<endl;
-            return -1;
+            free(ack);
+            return -2;
         }
         
         string ackStr = string(ack);
-        if(sckStr != "OK"){
-            cerr<<"[ERROR] Error retriving file part."<<endl;
-            return -2;
+        if(ackStr != "OK"){
+            cerr<<"[ERROR] Error sending file part."<<endl;
+            free(ack);
+            return -3;
         }
-
+        free(ack);
         fileSended += readedBytes;
+        cout << "[INFO] fileSended = " << fileSended << endl;
         //the following code prints * characters
         /*if (stars)
         {
@@ -120,7 +125,7 @@ int SecureConnection::sendFile(ifstream &file, bool stars)
     }
     /*
     if (stars)
-        cout << endl;*/
+        cout << endl;*/  
 
     return fileSended;
 }
@@ -157,26 +162,29 @@ int SecureConnection::receiveFile(const char *filename)
     size_t writedBytes;
     for (writedBytes = 0; writedBytes < fileSize; writedBytes += lenght)
     {
-        cout << "[DEBUG] writedBites = " << writedBytes << endl;
         lenght = recvSecureMsg((void **)&writer);
         if(lenght == 0){
             //server/client disconnected
             cout<<"[INFO] server/client disconnected."<<endl;
             return -1;
         }
+        cout << "[DEBUG] writedBites = " << writedBytes+lenght << endl;
         if (lenght < 0)
         {
             cerr << "[ERROR] Could not receive a part of the file." << endl;
             writeFile.close();
-            sendSecureMsg((void*)"ERROR Hash not valid",21);
+            cout<<"[DEBUGrecvFile] sending ERROR"<<endl;
+            sendSecureMsg((void*)"ERROR Hash not valid",21);   
             return -2;
         }else{
+            cout<<"[DEBUGrecvFile] sending OK"<<endl;
             sendSecureMsg((void*)"OK",3);
+            
         }
         writeFile.write(writer, lenght);
         free(writer);
+        
     }
-    cout << "[DEBUG] writedBites = " << writedBytes << endl;
     writeFile.close();
     return writedBytes;
 }
@@ -184,7 +192,7 @@ int SecureConnection::receiveFile(const char *filename)
 int SecureConnection::reciveAndPrintBigMessage()
 {
     char *writer;
-    cahr* ack;
+    char* ack;
     int lenght;
     lenght = recvSecureMsg((void **)&writer);
 
@@ -213,7 +221,6 @@ int SecureConnection::reciveAndPrintBigMessage()
         if (lenght < 0)
         {
             cerr << "[ERROR] Could not receive a part of the message." << endl;
-            writeFile.close();
             sendSecureMsg((void*)"ERROR Hash not valid",21);
             return -2;
         }else{

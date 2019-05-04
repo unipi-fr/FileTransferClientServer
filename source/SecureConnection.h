@@ -2,7 +2,7 @@
 #include "SecureMessageCreator.h"
 #include <fstream>
 
-#define BUFF_SIZE 16384
+#define BUFF_SIZE 16335
 
 class SecureConnection
 {

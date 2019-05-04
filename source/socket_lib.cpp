@@ -1,4 +1,12 @@
 #include "socket_lib.h"
+#include<string.h>	//per gestire le stringhe
+#include<stdlib.h> 	//funzioni dilibreria standard (atoi,)
+#include<sys/types.h>	//socket (costantie valori)
+#include<sys/socket.h>	//socket (funzioni)
+#include<netinet/in.h>	//socket (strutture)
+#include<arpa/inet.h>	//standard per l'ordine dei byte
+#include<unistd.h>		//close(socket)
+
 
 void sendTCP(int sendSocket, void *buffer, size_t bufferSize){
     uint16_t standardSize;
@@ -9,15 +17,13 @@ void sendTCP(int sendSocket, void *buffer, size_t bufferSize){
     //invio numero di dati
     numberOfBytes = send(sendSocket,(void*)&standardSize, sizeof(uint16_t),0);
     if(numberOfBytes == -1){
-        std::cout<<"ERRORE send()"<<std::endl;
-        exit(-5);
+        throw NetworkException();
     }
     
     //invio dati
     numberOfBytes = send(sendSocket, (void*)buffer, bufferSize, 0);
     if(numberOfBytes == -1){
-        std::cout<<"ERRORE send()"<<std::endl;
-        exit(-5);
+        throw NetworkException();
     }
 }
 
@@ -29,11 +35,10 @@ int recvTCP(int listenSocket, void** buffer){
     //ricevo la standardSize
     numberOfBytes = recv(listenSocket, (void*)&standardSize, sizeof(uint16_t), 0);
     if(numberOfBytes == 0){
-        return 0;
+        throw DisconnectionException();
     }
     if(numberOfBytes == -1){
-        std::cout<<"ERRORE recv() (1)"<<std::endl;
-        exit(-5);
+        throw NetworkException();
     }
     
     //riconverto i dati
@@ -44,8 +49,7 @@ int recvTCP(int listenSocket, void** buffer){
     //uso la lunghezzaPrecisa per ricevere la stringa
     numberOfBytes = recv(listenSocket, (void*)(*buffer), bufferSize, 0);
     if(numberOfBytes == -1){
-        std::cout<<"ERRORE recv() (2)"<<std::endl;
-        exit(-5);
+        throw NetworkException();
     }
     return numberOfBytes;
 }

@@ -43,7 +43,7 @@ void uploadCommand(string argument)
     int ret = _secureConnection->sendFile(readFile, true);
     if (ret == 0)
     {
-        cerr << "[ERROR] server sended an empty file" << endl; // ??
+        cerr << "[ERROR] sended an empty file" << endl; // ??
     }
     if (ret < 0)
     {
@@ -154,7 +154,7 @@ int main(int num_args, char *args[])
 
         cout << "$> ";
         cin>>command;
-        cout<<"[DEBUG|command]"<<command<<endl;
+        //cout<<"[DEBUG|command]"<<command<<endl;
         if (command == "u" || command == "upload")
         {
             cin >> argument;

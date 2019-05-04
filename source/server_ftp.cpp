@@ -15,17 +15,16 @@ void uploadCommand(string fileName)
 {
 	system("mkdir -p uploadedFiles");
 	string pathFileName = "uploadedFiles/" + fileName;
-	int res = _secureConnection->receiveFile(pathFileName.c_str());
+	int ret = _secureConnection->receiveFile(pathFileName.c_str());
+	cout <<"[DEBUGretRcvFile]"<<ret<<endl;
 	if (ret == 0)
     {
-        cout << "[INFO] server sended an empty file" << endl;
+        cout << "[INFO] client sended an empty file" << endl;
     }
     if (ret == -1)
     {
 		_activeSocket = -1;
 		_server->forceClientDisconnection();
-        cerr << "[ERROR] Client Disconnected" << endl;
-        exit(-1);
     }
     if(ret == -2)
     {
@@ -73,7 +72,7 @@ void retriveFileCommand(string fileName)
 		return;
 	}
 	int res = _secureConnection->sendFile(readStream, false);
-	if(res < 0){
+	if(res < 0 && res !=-3){
 		_activeSocket = -1;
 		_server->forceClientDisconnection();
 	}
@@ -91,7 +90,7 @@ stringstream receiveCommad()
 		return res;
 	}
 	if(bytesRecived == 0){
-		cout << "[INFO] Client isconnected"<< endl;
+		cout << "[INFO] Client Disconnected"<< endl;
 		_activeSocket = -1;
 		return res;
 	}	

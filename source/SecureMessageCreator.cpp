@@ -115,14 +115,14 @@ int SecureMessageCreator::EncryptAndSignMessage(unsigned char* plainText, int pl
 
   unsigned char *hashSign = sign(plainText, plainTextLen);
 
-  cout<<"[HASH SIGN]"<<hashSign<<endl;
+  //cout<<"[HASH SIGN]"<<hashSign<<endl;
 
   unsigned char *messageToEncrypt = (unsigned char*)malloc(plainTextLen + _hashSize);
 
   memcpy(messageToEncrypt, hashSign, _hashSize);
   memcpy(messageToEncrypt + _hashSize, plainText, plainTextLen);
 
-  cout<<"[messageToEncrypt] "<<messageToEncrypt<<endl;
+  //cout<<"[messageToEncrypt] "<<messageToEncrypt<<endl;
 
   int messageToEncryptLen = plainTextLen + _hashSize;
   *secureText = (unsigned char*)malloc(messageToEncryptLen + 16); //consider eventually padding
@@ -142,12 +142,12 @@ bool SecureMessageCreator::DecryptAndCheckSign(unsigned char* secureText, int se
 
   unsigned char *decryptedText = (unsigned char*)malloc(secureTextLen);
   int decryptLen = decrypt(secureText, secureTextLen, NULL, decryptedText);
-  cout<<"[dectyptedText]"<<decryptedText<<endl;
+  //cout<<"[dectyptedText]"<<decryptedText<<endl;
 
   unsigned char *msg = decryptedText + _hashSize;
   unsigned char *hash = decryptedText;
   //cout<<"[msg]"<<msg<<endl;
-  cout<<"[hash]"<<hash<<endl;
+  //cout<<"[hash]"<<hash<<endl;
 
   if(!check_hash(msg, decryptLen - _hashSize, hash)){
       cout<<"[ERRORE] firma non valida"<<endl;
