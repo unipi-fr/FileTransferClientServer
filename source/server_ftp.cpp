@@ -7,75 +7,100 @@
 using namespace std;
 
 SecureConnection *_secureConnection;
-ServerTCP * _server;
+ServerTCP *_server;
 int _activeSocket;
-
 
 void uploadCommand(string fileName)
 {
+	string cmd;
 	system("mkdir -p uploadedFiles");
-	string pathFileName = "uploadedFiles/" + fileName;
-	int ret = _secureConnection->receiveFile(pathFileName.c_str());
-	cout <<"[DEBUGretRcvFile]"<<ret<<endl;
-	if (ret == 0)
-    {
-        cout << "[INFO] client sended an empty file" << endl;
-    }
-    if (ret == -1)
-    {
-		_activeSocket = -1;
-		_server->forceClientDisconnection();
-    }
-    if(ret == -2)
-    {
-        cerr << "[ERROR] could't receive a part of file" << endl;
-    }
+	string tmpFile = string(rand()) + ".tmp";
+
+	try
+	{
+		_secureConnection->receiveFile(tmpFile.c_str());
+	}
+	catch (const NetworkException &ne)
+	{
+		cerr << "[ERROR] A network error has occoured downloading the file" << endl;
+		cmd = "rm " + tmpFile;
+		system(cmd);
+		return;
+	}
+	catch (const HashNotValidException &hnve)
+	{
+		cerr << "[ERROR] Failed to download a part of the file (Hash was not valid)" << endl;
+		cmd = "rm " + tmpFile;
+		system(cmd);
+		return;
+	}
+
+	cmd = "mv " + tmpFile + " uploadedFiles/" + fileName;
+	system(cmd);
 }
 
 void retriveListCommand()
 {
-	cout << "[DEBUG] retrive list command successfull called" << endl;
 	cout << "[INFO] creating list" << endl;
 	system("stat -c \"%n - %s Bytes\" uploadedFiles/* > fileList.txt");
 
-	cout << "[DEBUG] opening file" << endl;
 	ifstream readFile;
+
 	readFile.open("fileList.txt", ios::in | ios::binary);
-	if (readFile.is_open())
-	{
-		cout << "[DEBUG] file open" << endl;
-	}
-	else
+	if (!readFile.is_open())
 	{
 		cerr << "[ERROR] could not open the file." << endl;
 		readFile.close();
 		return;
 	}
+
+	cout << "[DEBUG] file open" << endl;
+
 	cout << "[DEBUG] sending fileList.txt" << endl;
-	int ret = _secureConnection->sendFile(readFile, false);
-	if (ret < 0)
-    {
-        cerr << "[ERROR] sending the list of file" << endl;
-    }
-
-	cout << "[DEBUG] fileList.txt sended" << endl;
-}
-
-void retriveFileCommand(string fileName) 
-{
-	string pathFileName = "uploadedFiles/" + fileName;
-	ifstream readStream;
-	readStream.open(pathFileName.c_str(),ios::in | ios::binary);
-	if(!readStream.is_open()){
-		//TODO: avvisare il server che il file non esiste
-		cerr<<"[ERROR] not possible open the file."<<endl;
+	try
+	{
+		_secureConnection->sendFile(readFile, false);
+	}
+	catch (const NetworkException &ne)
+	{
+		cerr << "[ERROR] A network error has occoured sending the dile list" << endl;
 		return;
 	}
-	int res = _secureConnection->sendFile(readStream, false);
-	if(res < 0 && res !=-3){
-		_activeSocket = -1;
-		_server->forceClientDisconnection();
+	catch (const ErrorOnOtherPartException &eope)
+	{
+		cerr << "[ERROR] Failed to upload a part of the file list (Hash was not valid)" << endl;
+		return;
 	}
+
+	cout << "[INFO] fileList sended" << endl;
+}
+
+void retriveFileCommand(string fileName)
+{
+	string pathFileName = "uploadedFiles/" + fileName;
+	ifstream readFile;
+	readFile.open(pathFileName.c_str(), ios::in | ios::binary);
+	if (!readFile.is_open())
+	{
+		//TODO: avvisare il clien che il file non esiste
+		cerr << "[ERROR] not possible open the file." << endl;
+		return;
+	}
+
+	try
+	{
+		_secureConnection->sendFile(readFile, false);
+	}
+	catch (const NetworkException &ne)
+	{
+		cerr << "[ERROR] A network error has occoured sending the file" << endl;
+	}
+	catch (const ErrorOnOtherPartException &eope)
+	{
+		cerr << "[ERROR] Failed to upload a part of the file (Hash was not valid)" << endl;
+	}
+
+	readFile.close();
 }
 
 stringstream receiveCommad()
@@ -83,22 +108,13 @@ stringstream receiveCommad()
 	stringstream res;
 	char *command;
 	int bytesRecived;
-	
-	bytesRecived = _secureConnection->recvSecureMsg((void**)&command);
-	if(bytesRecived < 0){
-		cout << "[ERROR] not possible retrive the command"<< endl;
-		return res;
-	}
-	if(bytesRecived == 0){
-		cout << "[INFO] Client Disconnected"<< endl;
-		_activeSocket = -1;
-		return res;
-	}	
-	cout << "[DEBUG msg]" << command << endl;
+
+	bytesRecived = _secureConnection->recvSecureMsg((void **)&command);
+
+	//cout << "[DEBUG msg]" << command << endl;
 	res << command;
-	
+
 	free((void *)command);
-	
 	return res;
 }
 
@@ -109,9 +125,19 @@ void manageConnection()
 	string filename;
 
 	cout << "[INFO] Ready to receive a command" << endl;
-	commandStream = receiveCommad();
+	try
+	{
+		commandStream = receiveCommad();
+	}
+	catch (const NetworkException &ne)
+	{
+		cerr << "[ERROR] A network error has occoured receiving the command" << endl;
+		return;
+	}
+
 	commandStream >> command;
-	cout << "[DEBUG command]'" << command << "'" << endl;
+	cout << "[DEBUG command] '" << command << "'" << endl;
+
 	if (command == "u")
 	{
 		commandStream >> filename;
@@ -132,28 +158,47 @@ void manageConnection()
 
 int main(int num_args, char *args[])
 {
+	srand(time(NULL));
 	if (num_args != 2)
 	{
 		printf("\nERRORE: Numero dei parametri non valido.\nUsage: %s <portNumber>\nchiusura programma...\n", args[0]);
 		exit(-2);
 	}
 	unsigned short portNumber = atoi(args[1]);
-	
+
 	_server = new ServerTCP(portNumber);
 	_secureConnection = new SecureConnection(_server);
-	
+
 	_activeSocket = -1;
 	for (;;)
 	{
-		cout << "[INFO] Wainting for the client." << endl;
+		cout << "[INFO] Wainting for a connection." << endl;
+
 		_activeSocket = _server->acceptNewConnecction();
 		if (_activeSocket >= 0)
 		{
 			cout << "[INFO] New client connected." << endl;
 		}
+
 		while (_activeSocket >= 0)
 		{
-			manageConnection();
+			try
+			{
+				manageConnection();
+			}
+			catch (const DisconnectionException &de)
+			{
+				_activeSocket = -1;
+				cout << "[INFO] Client Disconnected" << endl;
+			}
+			catch (const exception &e)
+			{
+				cout << "[ERROR] An Unexpected exceptions occours:" << endl;
+				cerr << e.what() << endl;
+
+				_activeSocket = -1;
+				cout << "[INFO] Client Disconnected" << endl;
+			}
 		}
 	}
 	return 0;

@@ -29,67 +29,95 @@ void uploadCommand(string argument)
     cout << "[DEBUG] entering uppload command" << endl;
 
     ifstream readFile;
+
     readFile.open(argument.c_str(), ios::in | ios::binary | ios::ate);
     if (!readFile.is_open())
     {
-        //error open
-        cerr << "[ERORR] file doesn't exists"<<endl;
+        cerr << "[ERORR] file doesn't exists" << endl;
+        return;
+    }
+    try
+    {
+        sendUploadCommand(argument);
+    }
+    catch (const NetworkException &e)
+    {
+        cerr << "[ERROR] A network error has occoured sending the command" << endl;
+        readFile.close();
         return;
     }
 
-    sendUploadCommand(argument);
-    cout << "[DEBUG] command sended" << endl;
+    //cout << "[DEBUG] command sended" << endl;
 
-    int ret = _secureConnection->sendFile(readFile, true);
-    if (ret == 0)
+    try
     {
-        cerr << "[ERROR] sended an empty file" << endl; // ??
+        _secureConnection->sendFile(readFile, true);
     }
-    if (ret < 0)
+    catch (const NetworkException &ne)
     {
-        cerr << "[ERROR] uploading the file" << endl;
+        cerr << "[ERROR] A network error has occoured sending the file" << endl;
     }
+    catch (const ErrorOnOtherPartException &eope)
+    {
+        cerr << "[ERROR] Failed to upload a part of the file (Hash was not valid)" << endl;
+    }
+
+    readFile.close();
 }
-
 
 void retriveListCommand()
 {
-    cout << "Called 'Retrive-List'" << endl;
-
-    sendRetriveListCommand();
-    cout << "[DEBUG] command sended" << endl;
-    
-    int ret = _secureConnection->reciveAndPrintBigMessage();
-    if (ret < 0)
+    //cout << "Called 'Retrive-List'" << endl;
+    try
     {
-        cerr << "[ERROR] receiving the list of file" << endl;
+        sendRetriveListCommand();
+    }
+    catch (const NetworkException &e)
+    {
+        cerr << "[ERROR] A network error has occoured sending the command" << endl;
+        return;
+    }
+    //cout << "[DEBUG] command sended" << endl;
+    try
+    {
+        _secureConnection->reciveAndPrintBigMessage();
+    }
+    catch (const NetworkException &ne)
+    {
+        cerr << "[ERROR] A network error has occoured downloading the message" << endl;
+    }
+    catch (const HashNotValidException &hnve)
+    {
+        cerr << "[ERROR] Failed to download a part of the message (Hash was not valid)" << endl;
     }
 }
 
 void retriveFileCommand(string filename)
 {
-    /*cout << "Called 'Retrive-File', not implemented yet :(" << endl
-         << endl;*/
-    cout << "Called 'Retrive-File'" << endl;
-
-    sendRetriveFileCommand(filename);
-    cout << "[DEBUG] command sended" << endl;
-
-    int ret = _secureConnection->receiveFile(filename.c_str());
-    if (ret == 0)
+    //cout << "Called 'Retrive-File'" << endl;
+    try
     {
-        cout << "[INFO] server sended an empty file" << endl;
+        sendRetriveFileCommand(filename);
     }
-    if (ret == -1)
+    catch (const NetworkException &e)
     {
-        cerr << "[ERROR] Server Disconnected" << endl;
-        exit(-1);
+        cerr << "[ERROR] A network error has occoured sending the command" << endl;
+        return;
     }
-    if(ret == -2)
-    {
-        cerr << "[ERROR] could't receive a part of file" << endl;
-    }
+    //cout << "[DEBUG] command sended" << endl;
 
+    try
+    {
+        _secureConnection->receiveFile(filename.c_str());
+    }
+    catch (const NetworkException &ne)
+    {
+        cerr << "[ERROR] A network error has occoured downloading the file" << endl;
+    }
+    catch (const HashNotValidException &hnve)
+    {
+        cerr << "[ERROR] Failed to download a part of the file (Hash was not valid)" << endl;
+    }
 }
 
 void helpCommand()
@@ -120,7 +148,7 @@ int main(int num_args, char *args[])
     if (num_args != 3)
     {
         cerr << "[ERROR] Number of parameters are not valid." << endl;
-        cout << "Usage: " << args[0] << " <_ipServer> <SERVER_PORT_#>" << endl;
+        cout << "Usage: " << args[0] << " <ipServer> <SERVER_PORT_#>" << endl;
         cout << "Closing program..." << endl
              << endl;
         return -1;
@@ -149,36 +177,49 @@ int main(int num_args, char *args[])
 
     bool exit = false;
     cout << "Insert the command (digit 'help' or 'h' for the command list):" << endl;
-    for (;;)
+    try
     {
-
-        cout << "$> ";
-        cin>>command;
-        //cout<<"[DEBUG|command]"<<command<<endl;
-        if (command == "u" || command == "upload")
+        for (;;)
         {
-            cin >> argument;
-            uploadCommand(argument);
+            cout << "$> ";
+            cin >> command;
+            //cout<<"[DEBUG|command]"<<command<<endl;
+            if (command == "u" || command == "upload")
+            {
+                cin >> argument;
+                uploadCommand(argument);
+            }
+            if (command == "rl" || command == "retrive-list")
+            {
+                retriveListCommand();
+            }
+            if (command == "rf" || command == "retrive-file")
+            {
+                cin >> argument;
+                retriveFileCommand(argument);
+            }
+            if (command == "h" || command == "help")
+            {
+                helpCommand();
+            }
+            if (command == "q" || command == "quit" || command == "exit")
+            {
+                quitCommand();
+                break;
+            }
+            getline(cin, garb);
         }
-        if (command == "rl" || command == "retrive-list")
-        {
-            retriveListCommand();
-        }
-        if (command == "rf" || command == "retrive-file")
-        {
-            cin >> argument;
-            retriveFileCommand(argument);
-        }
-        if (command == "h" || command == "help")
-        {
-            helpCommand();
-        }
-        if (command == "q" || command == "quit" || command == "exit")
-        {
-            quitCommand();
-            break;
-        }
-        getline(cin,garb);
+    }
+    catch (const DisconnectionException &de)
+    {
+        cerr << "Server disconnected." << endl;
+        cout << "Closing program...  Bye bye :)" << endl;
+    }
+    catch (const exception &e)
+    {
+        cout << "[ERROR] An Unexpected exceptions occours:" << endl;
+        cerr << e.what() << endl;
+        cout << "Closing program...  Bye bye :)" << endl;
     }
 
     return 0;

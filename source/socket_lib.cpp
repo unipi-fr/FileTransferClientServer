@@ -5,7 +5,7 @@
 #include<sys/socket.h>	//socket (funzioni)
 #include<netinet/in.h>	//socket (strutture)
 #include<arpa/inet.h>	//standard per l'ordine dei byte
-#include<unistd.h>		//close(socket)
+
 
 
 void sendTCP(int sendSocket, void *buffer, size_t bufferSize){
