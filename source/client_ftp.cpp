@@ -78,12 +78,18 @@ void retriveFileCommand(string filename)
     int ret = _secureConnection->receiveFile(filename.c_str());
     if (ret == 0)
     {
-        cerr << "[ERROR] server sended an empty file" << endl; // ??
+        cout << "[INFO] server sended an empty file" << endl;
     }
-    if (ret < 0)
+    if (ret == -1)
     {
-        cerr << "[ERROR] downloading the file" << endl;
+        cerr << "[ERROR] Server Disconnected" << endl;
+        exit(-1);
     }
+    if(ret == -2)
+    {
+        cerr << "[ERROR] could't receive a part of file" << endl;
+    }
+
 }
 
 void helpCommand()

@@ -67,6 +67,7 @@ int SecureConnection::sendFile(ifstream &file, bool stars)
 
     file.seekg(0, ios::beg);
     char buffer[BUFF_SIZE];
+    char* ack;
 
     size_t whenPrintCharacter = fileSize / 80;
     size_t partReaded = 0;
@@ -78,10 +79,28 @@ int SecureConnection::sendFile(ifstream &file, bool stars)
     }
     while (!file.eof())
     {
+        memset(buffer,0,BUFF_SIZE);
         cout << "[DEBUG] fileSended = " << fileSended << endl;
         file.read(buffer, BUFF_SIZE);
         size_t readedBytes = file.gcount();
         sendSecureMsg(buffer, readedBytes);
+        int ret =  recvSecureMsg((void**) &ack);
+        if(ret == 0){
+            //server/client disconnected
+            cout<<"[INFO] server/client disconnected."<<<endl;
+            return 0;
+        }
+        if(ret < 0){
+            //Error RCV
+            cerr<<"[ERROR] recive secure message falied."<<endl;
+            return -1;
+        }
+        
+        string ackStr = string(ack);
+        if(sckStr != "OK"){
+            cerr<<"[ERROR] Error retriving file part."<<endl;
+            return -2;
+        }
 
         fileSended += readedBytes;
         //the following code prints * characters
@@ -97,8 +116,7 @@ int SecureConnection::sendFile(ifstream &file, bool stars)
             }
             // *** :P :o 8====D {()} ***
         }*/
-        memset(buffer,0,BUFF_SIZE);
-        sleep(1);
+        //sleep(1);
     }
     /*
     if (stars)
@@ -131,9 +149,9 @@ int SecureConnection::receiveFile(const char *filename)
     if (!writeFile.is_open())
     {
         //TODO: errore aprire il file
-        cout << "[ERROR|reciveFile] could not open the file" << endl;
+        cerr << "[ERROR|reciveFile] could not open the file" << endl;
         writeFile.close();
-        return -1;
+        return -2;
     }
 
     size_t writedBytes;
@@ -141,11 +159,19 @@ int SecureConnection::receiveFile(const char *filename)
     {
         cout << "[DEBUG] writedBites = " << writedBytes << endl;
         lenght = recvSecureMsg((void **)&writer);
+        if(lenght == 0){
+            //server/client disconnected
+            cout<<"[INFO] server/client disconnected."<<endl;
+            return -1;
+        }
         if (lenght < 0)
         {
-            cout << "[ERROR] Could not receive a part of the file ---> Client will be disconnected." << endl;
+            cerr << "[ERROR] Could not receive a part of the file." << endl;
             writeFile.close();
-            return -1;
+            sendSecureMsg((void*)"ERROR Hash not valid",21);
+            return -2;
+        }else{
+            sendSecureMsg((void*)"OK",3);
         }
         writeFile.write(writer, lenght);
         free(writer);
@@ -158,6 +184,7 @@ int SecureConnection::receiveFile(const char *filename)
 int SecureConnection::reciveAndPrintBigMessage()
 {
     char *writer;
+    cahr* ack;
     int lenght;
     lenght = recvSecureMsg((void **)&writer);
 
@@ -178,11 +205,21 @@ int SecureConnection::reciveAndPrintBigMessage()
     for (writedBytes = 0; writedBytes < fileSize; writedBytes += lenght)
     {
         lenght = recvSecureMsg((void **)&writer);
+        if (lenght == 0)
+        {
+            cout << "[INFO] client/server disconnected." << endl;
+            return 0;
+        }
         if (lenght < 0)
         {
-            cerr << "[ERROR] Could not receive a part of the message ---> Client will be disconnected." << endl;
-            return -1;
+            cerr << "[ERROR] Could not receive a part of the message." << endl;
+            writeFile.close();
+            sendSecureMsg((void*)"ERROR Hash not valid",21);
+            return -2;
+        }else{
+            sendSecureMsg((void*)"OK",3);
         }
+        
         cout<<writer;
         free(writer);
     }

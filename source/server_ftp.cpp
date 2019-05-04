@@ -16,10 +16,21 @@ void uploadCommand(string fileName)
 	system("mkdir -p uploadedFiles");
 	string pathFileName = "uploadedFiles/" + fileName;
 	int res = _secureConnection->receiveFile(pathFileName.c_str());
-	if(res < 0){
+	if (ret == 0)
+    {
+        cout << "[INFO] server sended an empty file" << endl;
+    }
+    if (ret == -1)
+    {
 		_activeSocket = -1;
 		_server->forceClientDisconnection();
-	}
+        cerr << "[ERROR] Client Disconnected" << endl;
+        exit(-1);
+    }
+    if(ret == -2)
+    {
+        cerr << "[ERROR] could't receive a part of file" << endl;
+    }
 }
 
 void retriveListCommand()
