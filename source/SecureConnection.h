@@ -3,15 +3,17 @@
 #include <exception>
 #include <fstream>
 
-#define BUFF_SIZE 128
+#define BUFF_SIZE 4096
 
 class SecureConnectionException : public std::exception
 {
+    public:
     virtual const char *what() const throw() = 0;
 };
 
 class HashNotValidException : public SecureConnectionException
 {
+    public:
     const char *what() const throw()
     {
         return "Not valid hash during checking";
@@ -20,6 +22,7 @@ class HashNotValidException : public SecureConnectionException
 
 class ErrorOnOtherPartException : public SecureConnectionException
 {
+    public:
     const char *what() const throw()
     {
         return "Error on other part exception";

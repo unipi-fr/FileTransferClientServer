@@ -42,7 +42,8 @@ void uploadCommand(string fileName)
 void retriveListCommand()
 {
 	cout << "[INFO] creating list" << endl;
-	system("stat -c \"%n - %s Bytes\" uploadedFiles/* > fileList.txt");
+	//system("stat -c "%n |  %s Bytes" uploadedFiles/*  | awk -F/ '{print $NF}'");
+	system("ls -s -h -1 uploadedFiles/ > fileList.txt");
 
 	ifstream readFile;
 
@@ -68,6 +69,9 @@ void retriveListCommand()
 	catch (const ErrorOnOtherPartException &eope)
 	{
 		cerr << "[ERROR] Failed to upload a part of the file list (Hash was not valid)" << endl;
+	}
+	catch(const SecureConnectionException &sce){
+		cerr<<"[ERROR] "<<sce.what()<<endl;
 	}
 
 	system("rm fileList.txt");
@@ -134,6 +138,9 @@ void manageConnection()
 	{
 		cerr << "[ERROR] A network error has occoured receiving the command" << endl;
 		return;
+	}catch(const SecureConnectionException &se){
+		cerr<<"[ERROR] "<<se.what()<<endl;
+		return;
 	}
 
 	commandStream >> command;
@@ -174,7 +181,6 @@ int main(int num_args, char *args[])
 	for (;;)
 	{
 		cout << "[INFO] Wainting for a connection." << endl;
-
 		_activeSocket = _server->acceptNewConnecction();
 		if (_activeSocket >= 0)
 		{
@@ -197,6 +203,7 @@ int main(int num_args, char *args[])
 				cout << "[ERROR] An Unexpected exceptions occours:" << endl;
 				cerr << e.what() << endl;
 
+				_server->forceClientDisconnection();
 				_activeSocket = -1;
 				cout << "[INFO] Client Disconnected" << endl;
 			}

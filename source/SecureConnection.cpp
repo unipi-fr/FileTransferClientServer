@@ -111,6 +111,7 @@ int SecureConnection::sendFile(ifstream &file, bool stars)
 
         //sendSecureMsgWithAck(buffer, readedBytes);
         sendSecureMsg(buffer, readedBytes);
+        usleep(500);
 
         fileSended += readedBytes;
         cout << "[INFO] fileSended = " << fileSended << endl;
@@ -190,7 +191,7 @@ int SecureConnection::reciveAndPrintBigMessage()
     ss >> fileSize;
     free(writer);
     
-    cout << "[INFO] fileSize = "<<fileSize << endl;
+    //cout << "[INFO] fileSize = "<<fileSize << endl;
     
 
     size_t writedBytes;
@@ -204,7 +205,7 @@ int SecureConnection::reciveAndPrintBigMessage()
     }
     cout << endl;
 
-    cout << "[DEBUG] writedBites = " << writedBytes << endl;
+    //cout << "[DEBUG] writedBites = " << writedBytes << endl;
     
     return writedBytes;
 }

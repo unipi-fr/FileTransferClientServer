@@ -27,7 +27,7 @@ void ServerTCP::listenerSocketInit()
         cout << "[ERROR] not possible binding the address." << endl;
         exit(-1);
     }
-    ret = listen(_listenerSocket, 0);
+    ret = listen(_listenerSocket, 1);
     if (ret < 0)
     {
         cout << "[ERROR] not possible switching in listening mode." << endl;
@@ -51,12 +51,13 @@ ServerTCP::ServerTCP(unsigned short portNumber)
     _portNumber = portNumber;
     _comunicationSocket = -1;
     localAddrStructInit();
+    listenerSocketInit();
     cout << "[INFO]Server successfull listening on port " << _portNumber << endl;
 }
 
 int ServerTCP::acceptNewConnecction()
 {
-    listenerSocketInit();
+    //listenerSocketInit();
     socklen_t len = sizeof(_clientAddrStruct);
     memset(&_clientAddrStruct, 0, len);
     _comunicationSocket = accept(_listenerSocket, (struct sockaddr *)&_clientAddrStruct, &len);
@@ -66,7 +67,7 @@ int ServerTCP::acceptNewConnecction()
     }
     else
     {
-        listenerSocketClose();
+        //listenerSocketClose();
     }
     return _comunicationSocket;
 }

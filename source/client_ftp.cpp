@@ -94,10 +94,7 @@ void retriveListCommand()
 
 void retriveFileCommand(string filename)
 {
-    system("mkdir -p tmp");
-	string tmpFile  = "tmp/tmp.txt";
-    string cmd;
-    //cout << "Called 'Retrive-File'" << endl;
+        //cout << "Called 'Retrive-File'" << endl;
     try
     {
         sendRetriveFileCommand(filename);
@@ -108,18 +105,30 @@ void retriveFileCommand(string filename)
         return;
     }
     //cout << "[DEBUG] command sended" << endl;
+    system("mkdir -p tmp");
+	string tmpFile  = "tmp/tmp.txt";
+    string cmd;
 
     try
     {
         _secureConnection->receiveFile(tmpFile.c_str());
     }
+    catch (const DisconnectionException &de)
+    {
+        system("rm -r tmp");
+        throw de;
+    }
     catch (const NetworkException &ne)
     {
         cerr << "[ERROR] A network error has occoured downloading the file" << endl;
+        system("rm -r tmp");
+        return;
     }
     catch (const HashNotValidException &hnve)
     {
         cerr << "[ERROR] Failed to download a part of the file (Hash was not valid)" << endl;
+        system("rm -r tmp");
+        return;
     }
     cmd = "mv " + tmpFile+ " " + filename;
 	system(cmd.c_str());
