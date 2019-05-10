@@ -196,6 +196,6 @@ public:
      * #@@@#####@@##+##,+###+#######;::,,'+,;'+#####;''''''''''''''''''''''''''+++#########+###+####+#++###+####++++
     */
     int sendFile(std::ifstream &file, bool stars);
-    int receiveFile(const char *filename);
+    int receiveFile(const char *filename, bool stars);
     int reciveAndPrintBigMessage();
 };

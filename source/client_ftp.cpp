@@ -57,10 +57,6 @@ void uploadCommand(string argument)
     {
         cerr << "[ERROR] A network error has occoured sending the file" << endl;
     }
-    catch (const ErrorOnOtherPartException &eope)
-    {
-        cerr << "[ERROR] Failed to upload a part of the file (Hash was not valid)" << endl;
-    }
 
     readFile.close();
 }
@@ -86,10 +82,6 @@ void retriveListCommand()
     {
         cerr << "[ERROR] A network error has occoured downloading the message" << endl;
     }
-    catch (const HashNotValidException &hnve)
-    {
-        cerr << "[ERROR] Failed to download a part of the message (Hash was not valid)" << endl;
-    }
 }
 
 void retriveFileCommand(string filename)
@@ -111,7 +103,7 @@ void retriveFileCommand(string filename)
 
     try
     {
-        _secureConnection->receiveFile(tmpFile.c_str());
+        _secureConnection->receiveFile(tmpFile.c_str(), true);
     }
     catch (const DisconnectionException &de)
     {
@@ -125,13 +117,13 @@ void retriveFileCommand(string filename)
         return;
     }
     catch (const HashNotValidException &hnve)
-    {
-        cerr << "[ERROR] Failed to download a part of the file (Hash was not valid)" << endl;
+    {     
         system("rm -r tmp");
-        return;
+        throw hnve;
     }
     cmd = "mv " + tmpFile+ " " + filename;
 	system(cmd.c_str());
+    system("rm -r tmp");
 }
 
 void helpCommand()
@@ -228,6 +220,10 @@ int main(int num_args, char *args[])
     {
         cerr << "Server disconnected." << endl;
         cout << "Closing program...  Bye bye :)" << endl;
+    }
+    catch(const HashNotValidException &hnve){
+        cerr << "[ERROR] Failed to download a part of the message (Hash was not valid)" << endl;
+        _client->closeConnection();
     }
     catch (const exception &e)
     {

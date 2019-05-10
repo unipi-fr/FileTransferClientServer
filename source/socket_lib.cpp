@@ -1,6 +1,7 @@
 #include "socket_lib.h"
 #include<arpa/inet.h>	//standard per l'ordine dei byte
 #include <stdlib.h> 
+//#include <iostream>
 
 
 
@@ -29,11 +30,15 @@ int recvTCP(int listenSocket, void** buffer){
     int bufferSize;
     
     //ricevo la standardSize
-    numberOfBytes = recv(listenSocket, (void*)&standardSize, sizeof(uint16_t), 0);
+    numberOfBytes = recv(listenSocket, (void*)&standardSize, sizeof(uint16_t), MSG_WAITALL);
     if(numberOfBytes == 0){
         throw DisconnectionException();
     }
     if(numberOfBytes == -1){
+        throw NetworkException();
+    }
+    if(numberOfBytes != sizeof(uint16_t)){
+        //std::cout<<"[DEBUGbytesRecived ]"<<numberOfBytes<<" [expectedSize] "<<bufferSize<<std::endl;
         throw NetworkException();
     }
     
@@ -43,8 +48,12 @@ int recvTCP(int listenSocket, void** buffer){
     //alloco il buffer
     (*buffer) = malloc(bufferSize);
     //uso la lunghezzaPrecisa per ricevere la stringa
-    numberOfBytes = recv(listenSocket, (void*)(*buffer), bufferSize, 0);
+    numberOfBytes = recv(listenSocket, (void*)(*buffer), bufferSize, MSG_WAITALL);
     if(numberOfBytes == -1){
+        throw NetworkException();
+    }
+    if(numberOfBytes != bufferSize){
+        //std::cout<<"[DEBUGbytesRecived ]"<<numberOfBytes<<" [expected] "<<bufferSize<<std::endl;
         throw NetworkException();
     }
     return numberOfBytes;

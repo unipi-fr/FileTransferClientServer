@@ -111,12 +111,12 @@ int SecureConnection::sendFile(ifstream &file, bool stars)
 
         //sendSecureMsgWithAck(buffer, readedBytes);
         sendSecureMsg(buffer, readedBytes);
-        usleep(500);
+        //usleep(500);
 
         fileSended += readedBytes;
-        cout << "[INFO] fileSended = " << fileSended << endl;
+        //cout << "[INFO] fileSended = " << fileSended << endl;
         //the following code prints * characters
-        /*if (stars)
+        if (stars)
         {
             partReaded += readedBytes;
             
@@ -126,18 +126,15 @@ int SecureConnection::sendFile(ifstream &file, bool stars)
                     cout << "*" << flush;
                 partReaded = partReaded % whenPrintCharacter;
             }
-            // *** :P :o 8====D {()} ***
-        }*/
-        //sleep(1);
+        }
     }
-    /*
     if (stars)
-        cout << endl;*/
+        cout << endl;
 
     return fileSended;
 }
 
-int SecureConnection::receiveFile(const char *filename)
+int SecureConnection::receiveFile(const char *filename, bool stars)
 {
     ofstream writeFile;
 
@@ -160,17 +157,34 @@ int SecureConnection::receiveFile(const char *filename)
         throw FileNotOpenException();
     }
 
+    size_t whenPrintCharacter = fileSize / 80;
+    size_t partReaded = 0;
+
     size_t writedBytes;
     for (writedBytes = 0; writedBytes < fileSize; writedBytes += lenght)
     {
         //lenght = recvSecureMsgWithAck((void **)&writer);
         lenght = recvSecureMsg((void **)&writer);
 
-        cout << "[DEBUG] writedBites = " << writedBytes + lenght << endl;
+        //cout << "[DEBUG] writedBites = " << writedBytes + lenght << endl;
+        //the following code prints * characters
+        if (stars)
+        {
+            partReaded += lenght;
+            
+            if (whenPrintCharacter > 0 && partReaded >= whenPrintCharacter)
+            {
+                for (int i = 0; i < partReaded / whenPrintCharacter; i++)
+                    cout << "*" << flush;
+                partReaded = partReaded % whenPrintCharacter;
+            }
+        }
 
         writeFile.write(writer, lenght);
         free(writer);
     }
+    if (stars)
+        cout << endl;
 
     writeFile.close();
 

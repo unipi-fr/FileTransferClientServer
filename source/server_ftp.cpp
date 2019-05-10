@@ -10,6 +10,13 @@ SecureConnection *_secureConnection;
 ServerTCP *_server;
 int _activeSocket;
 
+void disconnectClient()
+{
+	_server->forceClientDisconnection();
+	_activeSocket = -1;
+	cout << "[INFO] Client Disconnected" << endl;
+}
+
 void uploadCommand(string fileName)
 {
 	string cmd;
@@ -18,13 +25,14 @@ void uploadCommand(string fileName)
 
 	try
 	{
-		_secureConnection->receiveFile(tmpFile.c_str());
+		_secureConnection->receiveFile(tmpFile.c_str(), true);
 	}
 	catch (const NetworkException &ne)
 	{
 		cerr << "[ERROR] A network error has occoured downloading the file" << endl;
 		cmd = "rm " + tmpFile;
 		system(cmd.c_str());
+		disconnectClient();
 		return;
 	}
 	catch (const HashNotValidException &hnve)
@@ -32,6 +40,7 @@ void uploadCommand(string fileName)
 		cerr << "[ERROR] Failed to download a part of the file (Hash was not valid)" << endl;
 		cmd = "rm " + tmpFile;
 		system(cmd.c_str());
+		disconnectClient();
 		return;
 	}
 
@@ -65,13 +74,16 @@ void retriveListCommand()
 	catch (const NetworkException &ne)
 	{
 		cerr << "[ERROR] A network error has occoured sending the dile list" << endl;
-	}
+		disconnectClient();
+	}/*
 	catch (const ErrorOnOtherPartException &eope)
 	{
 		cerr << "[ERROR] Failed to upload a part of the file list (Hash was not valid)" << endl;
-	}
+		disconnectClient();
+	}*/
 	catch(const SecureConnectionException &sce){
 		cerr<<"[ERROR] "<<sce.what()<<endl;
+		disconnectClient();
 	}
 
 	system("rm fileList.txt");
@@ -99,10 +111,12 @@ void retriveFileCommand(string fileName)
 	catch (const NetworkException &ne)
 	{
 		cerr << "[ERROR] A network error has occoured sending the file" << endl;
+		disconnectClient();
 	}
 	catch (const ErrorOnOtherPartException &eope)
 	{
 		cerr << "[ERROR] Failed to upload a part of the file (Hash was not valid)" << endl;
+		disconnectClient();
 	}
 
 	readFile.close();
@@ -137,9 +151,11 @@ void manageConnection()
 	catch (const NetworkException &ne)
 	{
 		cerr << "[ERROR] A network error has occoured receiving the command" << endl;
+		disconnectClient();
 		return;
 	}catch(const SecureConnectionException &se){
 		cerr<<"[ERROR] "<<se.what()<<endl;
+		disconnectClient();
 		return;
 	}
 
@@ -203,9 +219,7 @@ int main(int num_args, char *args[])
 				cout << "[ERROR] An Unexpected exceptions occours:" << endl;
 				cerr << e.what() << endl;
 
-				_server->forceClientDisconnection();
-				_activeSocket = -1;
-				cout << "[INFO] Client Disconnected" << endl;
+				disconnectClient();				
 			}
 		}
 	}
