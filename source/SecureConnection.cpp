@@ -3,12 +3,51 @@
 #include <sstream>
 #include <unistd.h>
 #include <string.h>
+#include <openssl/rand.h>
+//#include <stdlib.h> // for random nonce
+//#include <time.h>   // for random nonce
+#include <iostream>
 using namespace std;
 
 SecureConnection::SecureConnection(IClientServerTCP *csTCP)
 {
     _csTCP = csTCP;
     _sMsgCreator = new SecureMessageCreator();
+}
+
+int SecureConnection::sendCertificate(X509* cert)
+{
+    unsigned char* buf = NULL;
+    
+    int size = i2d_X509(cert, &buf);
+    if(size < 0)
+    {
+        cerr << "[ERROR] i2d_X509() error"<<endl;
+        return -1;
+    }
+
+    _csTCP->sendMsg(buf, size);
+
+    OPENSSL_free(buf);
+
+    return size;
+}
+
+int SecureConnection::rcvCertificate(X509* cert)
+{
+    unsigned char *buf;
+    long size;
+
+    size = _csTCP->recvMsg((void**) &buf);
+    
+    cert = d2i_X509(NULL, (const unsigned char**)&buf, size);
+    if(!cert)
+    {
+        cerr << "[ERROR] d2i_X509() error"<<endl;
+        return -1;
+    }
+
+    return size;
 }
 
 void SecureConnection::sendSecureMsg(void *buffer, size_t bufferSize)
@@ -18,19 +57,6 @@ void SecureConnection::sendSecureMsg(void *buffer, size_t bufferSize)
     size_t msgSize = _sMsgCreator->EncryptAndSignMessage((unsigned char *)buffer, bufferSize, &secureMessage);
     _csTCP->sendMsg(secureMessage, msgSize);
     free(secureMessage);
-}
-
-void SecureConnection::sendSecureMsgWithAck(void *buffer, size_t bufferSize)
-{
-    sendSecureMsg(buffer, bufferSize);
-
-    char *ack;
-    recvSecureMsg((void **)&ack);
-    string ackStr = ack;
-    free(ack);
-    if(ackStr != "OK"){
-        throw ErrorOnOtherPartException();
-    }
 }
 
 int SecureConnection::recvSecureMsg(void **plainText)
@@ -55,22 +81,165 @@ int SecureConnection::recvSecureMsg(void **plainText)
     return plainTextSize;
 }
 
-int SecureConnection::recvSecureMsgWithAck(void **plainText)
-{
-    int ret;
-    try
-    {
-        ret = recvSecureMsg(plainText);
-    }
-    catch (const HashNotValidException &hnve)
-    {
-        sendSecureMsg((void *)"ERROR Hash is not valid", 24);
-        throw hnve;
-    }
+int SecureConnection::randomInteger(){
+    RAND_poll();
+    
+    int rndNumber; 
 
-    sendSecureMsg((void *)"OK", 3);
-    return ret;
+    RAND_bytes((unsigned char*) &rndNumber, sizeof(int)); 
+    return rndNumber;  
 }
+
+int SecureConnection::concatenate(unsigned char* src1, uint32_t len1, unsigned char* src2, uint32_t len2, unsigned char* &dest)
+{
+    int destSize = len1 + len2 + 2*sizeof(uint32_t);
+
+    dest = (unsigned char*) malloc(destSize);
+
+    int currentPos = 0;
+
+    memcpy(dest, &len1, sizeof(uint32_t));
+    currentPos += sizeof(uint32_t);
+
+    memcpy(dest + currentPos, src1, len1);
+    currentPos += len1;
+
+    memcpy(dest + currentPos, &len2, sizeof(uint32_t));
+    currentPos += sizeof(uint32_t);
+
+    memcpy(dest + currentPos, src2, len2);
+    currentPos += len2;
+
+    return currentPos;
+}
+
+void SecureConnection::establishConnectionServer()
+{
+    DH *dh_session; //alloco la struttura 
+    dh_session = _sMsgCreator->get_dh2048();
+    
+    DH_generate_key(dh_session);
+
+    cout<<"[DEBUG] PrivateKey generated"<<endl;
+
+    unsigned char* Yc;
+    int YcLen;
+
+    YcLen = _csTCP->recvMsg((void**)&Yc);
+
+    BIGNUM *bnYc;
+    bnYc = BN_bin2bn(Yc, YcLen, NULL);
+
+    unsigned char *sharedkey;
+    int sharedkey_size;
+    
+    sharedkey = (unsigned char*) malloc(sizeof(unsigned char) *DH_size(dh_session));
+
+    sharedkey_size = DH_compute_key(sharedkey, bnYc, dh_session);
+    
+    _sMsgCreator->generateKeys(sharedkey,sharedkey_size);
+    
+    BN_free(bnYc);
+
+    BIGNUM *bnYs = (BIGNUM *) DH_get0_pub_key(dh_session);
+    
+    unsigned char* Ys;
+    int YsLen;
+    
+    YsLen = BN_bn2bin(bnYs, Ys); 
+
+    _csTCP->sendMsg(Ys, YsLen);
+
+/*
+    unsigned char *msg;
+    int msgLen;
+
+    msgLen = concatenate(Ys, YsLen, Yc, YcLen, msg);
+
+    EVP_PKEY* privKey = _sMsgCreator->ExtractPrivateKey("rsa_privkey.pem");
+
+    unsigned char *signature;
+    int signatureLen;
+
+    signatureLen = _sMsgCreator->sign(msg, msgLen, privKey, signature);
+
+    sendSecureMsg(signature, signatureLen);
+
+    X509* cert = _sMsgCreator->loadCertificateFromFile("server_cert.pem");
+    int ret = sendCertificate(cert);
+    if(ret < 0)
+    {
+        return;
+    }*/
+
+    free(Ys);
+    BN_free(bnYs);
+    DH_free(dh_session);
+
+    //unsigned char* iv;
+    //int ivSize = _csTCP->recvMsg((void **)&iv);
+    //
+    //unsigned char* encryptedKey;
+    //int encryptedKeySize = _csTCP->recvMsg((void **)&encryptedKey);
+    //
+    //unsigned char* encryptedNonce;
+    //int encryptedNonceSize = _csTCP->recvMsg((void **)&encryptedNonce);
+    //
+    //EVP_PKEY* privateKey =  _sMsgCreator->ExtractPrivateKey("rsa_privkey.pem");
+    //throw exception();
+} 
+
+void SecureConnection::establishConnectionClient()
+{
+    DH *dh_session; //alloco la struttura 
+    dh_session = _sMsgCreator->get_dh2048();
+
+    DH_generate_key(dh_session);
+
+    cout<<"[DEBUG] PrivateKey generated"<<endl;
+
+    BIGNUM *bnYc = (BIGNUM *) DH_get0_pub_key(dh_session);
+    if(!bnYc)
+    {
+        cout<<"[ERROR] bnYc is NULL"<<endl;
+    }
+    
+    unsigned char* Yc;
+    int YcLen;
+    
+    cout<<"1"<<endl;
+    YcLen = BN_bn2bin(bnYc, Yc);
+    cout<<"[DEBUG] YcLen:"<<YcLen<<endl; 
+
+    cout<<"[_csTCP]"<<_csTCP<<endl;
+
+    _csTCP->sendMsg((void*) Yc,YcLen);
+
+    cout<<"[DEBUG] Yc sended"<<endl;
+
+    unsigned char* Ys;
+    int YsLen;
+
+    YsLen = _csTCP->recvMsg((void**)&Ys); 
+
+    BIGNUM *bnYs;
+    bnYs = BN_bin2bn(Ys, YsLen, NULL);
+
+    BN_free(bnYs);
+
+    unsigned char *sharedkey;
+    int sharedkey_size;
+    
+    sharedkey = (unsigned char*) malloc(sizeof(unsigned char) *DH_size(dh_session));
+
+    sharedkey_size = DH_compute_key(sharedkey, bnYs, dh_session);
+    
+    _sMsgCreator->generateKeys(sharedkey,sharedkey_size);
+
+    free(Ys);
+    BN_free(bnYc);
+    DH_free(dh_session);
+} 
 
 int SecureConnection::sendFile(ifstream &file, bool stars)
 {

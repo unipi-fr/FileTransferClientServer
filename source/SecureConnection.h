@@ -43,13 +43,21 @@ private:
     IClientServerTCP *_csTCP;
     SecureMessageCreator *_sMsgCreator;
 
+    int randomInteger();
+    int concatenate(unsigned char* src1, uint32_t len1, unsigned char* src2, uint32_t len2, unsigned char* &dest);
+
 public:
     SecureConnection(IClientServerTCP *csTCP);
+
+    int sendCertificate(X509* cert);
+    int rcvCertificate(X509* cert);
+
     void sendSecureMsg(void *buffer, size_t bufferSize);
     int recvSecureMsg(void **plainText);
-    void sendSecureMsgWithAck(void *buffer, size_t bufferSize);
-    int recvSecureMsgWithAck(void **plainText);
 
+    void establishConnectionServer();
+    void establishConnectionClient();
+    
     /**
      * sendFile send a file.
      *

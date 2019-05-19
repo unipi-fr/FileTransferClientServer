@@ -1,6 +1,7 @@
 #include "SecureConnection.h"
 #include "ClientTCP.h"
 #include <limits.h>
+#include <iostream>
 using namespace std;
 
 SecureConnection *_secureConnection;
@@ -175,6 +176,16 @@ int main(int num_args, char *args[])
     cout << "Successfull connected to the server " << ipServer << " (PORT: " << portNumber << ")" << endl;
 
     _secureConnection = new SecureConnection(_client);
+    
+    try
+    {
+        _secureConnection->establishConnectionClient();
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+        return -1;
+    }
 
     string command;
     string argument;

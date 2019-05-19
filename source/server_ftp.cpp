@@ -198,6 +198,16 @@ int main(int num_args, char *args[])
 	{
 		cout << "[INFO] Wainting for a connection." << endl;
 		_activeSocket = _server->acceptNewConnecction();
+		try
+		{
+			_secureConnection->establishConnectionServer();
+		}
+		catch(const exception& e)
+		{
+			cerr << e.what() << '\n';
+			continue;
+		}
+		
 		if (_activeSocket >= 0)
 		{
 			cout << "[INFO] New client connected." << endl;

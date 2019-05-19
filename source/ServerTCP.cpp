@@ -65,10 +65,7 @@ int ServerTCP::acceptNewConnecction()
     {
         cout << "[ERROR] not possible accept new connection." << endl;
     }
-    else
-    {
-        //listenerSocketClose();
-    }
+    
     return _comunicationSocket;
 }
 
@@ -76,13 +73,10 @@ int ServerTCP::recvMsg(void **buffer)
 {
     if (_comunicationSocket < 0)
     {
-        cout << "[ERROR] recvMsg called without a client connected." << endl;
+        cout << "[WARNING] recvMsg called without a client connected." << endl;
     }
     int numberOfBytes = recvTCP(_comunicationSocket, buffer);
-    if (numberOfBytes == 0)
-    {
-        clientDisconnected();
-    }
+
     return numberOfBytes;
 }
 
@@ -90,7 +84,7 @@ void ServerTCP::sendMsg(void *buffer, size_t bufferSize)
 {
     if (_comunicationSocket < 0)
     {
-        cout << "[ERROR] sendMsg called without a client connected" << endl;
+        cout << "[WARNING] sendMsg called without a client connected" << endl;
     }
     sendTCP(_comunicationSocket, buffer, bufferSize);
 }

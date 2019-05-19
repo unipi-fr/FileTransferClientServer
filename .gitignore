@@ -5,6 +5,7 @@ downloadedFiles/
 client/
 server/
 tmp/
+labs/
 
 #excluded files
 *.mp4
