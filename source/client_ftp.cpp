@@ -179,7 +179,7 @@ int main(int num_args, char *args[])
     
     try
     {
-        _secureConnection->establishConnectionClient();
+        //_secureConnection->establishConnectionClient();
     }
     catch(const std::exception& e)
     {

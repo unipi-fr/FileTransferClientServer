@@ -200,7 +200,7 @@ int main(int num_args, char *args[])
 		_activeSocket = _server->acceptNewConnecction();
 		try
 		{
-			_secureConnection->establishConnectionServer();
+			//_secureConnection->establishConnectionServer();
 		}
 		catch(const exception& e)
 		{

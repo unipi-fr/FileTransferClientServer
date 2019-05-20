@@ -212,7 +212,6 @@ void SecureConnection::establishConnectionClient()
     cout<<"[DEBUG] YcLen:"<<YcLen<<endl; 
 
     cout<<"[_csTCP]"<<_csTCP<<endl;
-
     _csTCP->sendMsg((void*) Yc,YcLen);
 
     cout<<"[DEBUG] Yc sended"<<endl;
