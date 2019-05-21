@@ -65,11 +65,12 @@ SecureMessageCreator::SecureMessageCreator()
   //size of the hash
   _hashSize = EVP_MD_size(_hashAlgorithm);
 
-  generateKeys((unsigned char*)"ciao mamma come stai?",22);
+  //derivateKeys((unsigned char*)"ciao mamma come stai?",22);
 }
 
-bool SecureMessageCreator::generateKeys(unsigned char* inizializationKey, size_t ikSize){
+bool SecureMessageCreator::derivateKeys(unsigned char* inizializationKey, size_t ikSize){
   cout<<"[DEBUG] generating session and HMAC keys..."<<endl;
+  
   size_t halfSize = ikSize/2;
   unsigned char* firstPart = inizializationKey;
   unsigned char* secondPart = inizializationKey + halfSize;

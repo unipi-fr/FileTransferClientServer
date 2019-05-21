@@ -40,7 +40,7 @@ class SecureMessageCreator {
 
   public:
     SecureMessageCreator();
-    bool generateKeys(unsigned char* inizializationKey, size_t ikSize);
+    bool derivateKeys(unsigned char* inizializationKey, size_t ikSize);
 
     int EncryptAndSignMessage(unsigned char* plainText, int plainTextLen, unsigned char** secureText);
     bool DecryptAndCheckSign(unsigned char* secureText, int secureTextLen, unsigned char** plainText, int &plainTextLen);

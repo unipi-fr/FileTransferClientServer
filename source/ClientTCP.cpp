@@ -43,7 +43,6 @@ bool ClientTCP::serverTCPconnection()
 
 void ClientTCP::sendMsg(void *buffer, size_t bufferSize)
 {
-    cout<<"SendingMSG..."<<endl;
     sendTCP(_socketTCP, buffer, bufferSize);
 }
 

@@ -130,6 +130,8 @@ void SecureConnection::establishConnectionServer()
     BIGNUM *bnYc;
     bnYc = BN_bin2bn(Yc, YcLen, NULL);
 
+    free(Yc);
+
     unsigned char *sharedkey;
     int sharedkey_size;
     
@@ -137,13 +139,14 @@ void SecureConnection::establishConnectionServer()
 
     sharedkey_size = DH_compute_key(sharedkey, bnYc, dh_session);
     
-    _sMsgCreator->generateKeys(sharedkey,sharedkey_size);
+    _sMsgCreator->derivateKeys(sharedkey,sharedkey_size);
+    free(sharedkey);
     
     BN_free(bnYc);
 
     BIGNUM *bnYs = (BIGNUM *) DH_get0_pub_key(dh_session);
     
-    unsigned char* Ys;
+    unsigned char* Ys = new unsigned char[BN_num_bytes(bnYs)];
     int YsLen;
     
     YsLen = BN_bn2bin(bnYs, Ys); 
@@ -174,7 +177,7 @@ void SecureConnection::establishConnectionServer()
 
     free(Ys);
     BN_free(bnYs);
-    DH_free(dh_session);
+    //DH_free(dh_session);
 
     //unsigned char* iv;
     //int ivSize = _csTCP->recvMsg((void **)&iv);
@@ -204,15 +207,16 @@ void SecureConnection::establishConnectionClient()
         cout<<"[ERROR] bnYc is NULL"<<endl;
     }
     
-    unsigned char* Yc;
+    unsigned char* Yc = new unsigned char[BN_num_bytes(bnYc)];
     int YcLen;
     
-    cout<<"1"<<endl;
     YcLen = BN_bn2bin(bnYc, Yc);
-    cout<<"[DEBUG] YcLen:"<<YcLen<<endl; 
 
-    cout<<"[_csTCP]"<<_csTCP<<endl;
+    BN_free(bnYc);
+
+    cout<<"[_csTCP]"<<(void*)_csTCP<<endl;
     _csTCP->sendMsg((void*) Yc,YcLen);
+    free(Yc);
 
     cout<<"[DEBUG] Yc sended"<<endl;
 
@@ -224,7 +228,7 @@ void SecureConnection::establishConnectionClient()
     BIGNUM *bnYs;
     bnYs = BN_bin2bn(Ys, YsLen, NULL);
 
-    BN_free(bnYs);
+    free(Ys);
 
     unsigned char *sharedkey;
     int sharedkey_size;
@@ -233,11 +237,10 @@ void SecureConnection::establishConnectionClient()
 
     sharedkey_size = DH_compute_key(sharedkey, bnYs, dh_session);
     
-    _sMsgCreator->generateKeys(sharedkey,sharedkey_size);
-
-    free(Ys);
-    BN_free(bnYc);
-    DH_free(dh_session);
+    _sMsgCreator->derivateKeys(sharedkey,sharedkey_size);
+    free(sharedkey);
+    BN_free(bnYs);
+    //DH_free(dh_session);
 } 
 
 int SecureConnection::sendFile(ifstream &file, bool stars)
