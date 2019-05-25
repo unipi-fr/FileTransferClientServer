@@ -10,19 +10,21 @@ ClientTCP *_client;
 void sendUploadCommand(string file)
 {
     string msg = "u " + file;
-    _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length());
+    _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length()+1);
 }
 
 void sendRetriveListCommand()
 {
     string msg = "rl";
-    _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length());
+    _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length()+1);
+    //char msg[] = "rl";
+    //_secureConnection->sendSecureMsg((void *)msg, 3);
 }
 
 void sendRetriveFileCommand(string file)
 {
     string msg = "rf " + file;
-    _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length());
+    _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length()+1);
 }
 
 void uploadCommand(string argument)

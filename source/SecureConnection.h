@@ -55,6 +55,8 @@ public:
     void sendSecureMsg(void *buffer, size_t bufferSize);
     int recvSecureMsg(void **plainText);
 
+    int computeSharedKey(DH *dh_session, BIGNUM *bn, unsigned char* &sharedkey);
+
     void establishConnectionServer();
     void establishConnectionClient();
     

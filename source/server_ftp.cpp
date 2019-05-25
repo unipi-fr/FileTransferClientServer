@@ -130,7 +130,7 @@ stringstream receiveCommad()
 
 	bytesRecived = _secureConnection->recvSecureMsg((void **)&command);
 
-	//cout << "[DEBUG msg]" << command << endl;
+	cout << "[DEBUG msg]" << command << endl;
 	res << command;
 
 	free((void *)command);
@@ -158,7 +158,6 @@ void manageConnection()
 		disconnectClient();
 		return;
 	}
-
 	commandStream >> command;
 	cout << "[DEBUG command] '" << command << "'" << endl;
 

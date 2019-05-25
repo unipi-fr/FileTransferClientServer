@@ -113,6 +113,13 @@ int SecureConnection::concatenate(unsigned char* src1, uint32_t len1, unsigned c
     return currentPos;
 }
 
+int SecureConnection::computeSharedKey(DH *dh_session, BIGNUM *bn, unsigned char* &sharedkey)
+{   
+    sharedkey = (unsigned char*) malloc(sizeof(unsigned char) *DH_size(dh_session));
+
+    return DH_compute_key(sharedkey, bn, dh_session);
+}
+
 void SecureConnection::establishConnectionServer()
 {
     DH *dh_session; //alloco la struttura 
@@ -240,7 +247,7 @@ void SecureConnection::establishConnectionClient()
     _sMsgCreator->derivateKeys(sharedkey,sharedkey_size);
     free(sharedkey);
     BN_free(bnYs);
-    //DH_free(dh_session);
+    DH_free(dh_session);
 } 
 
 int SecureConnection::sendFile(ifstream &file, bool stars)
