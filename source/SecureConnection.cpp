@@ -12,7 +12,17 @@ using namespace std;
 SecureConnection::SecureConnection(IClientServerTCP *csTCP)
 {
     _csTCP = csTCP;
+
     _sMsgCreator = new SecureMessageCreator();
+
+    _certVal = new CertificationValidator();
+
+    X509* caCert = _certVal->loadCertificateFromFile("CA_CybersecurityUniPi.pem");
+    if(caCert == NULL){
+        cout<<"[WARNING] not possible load CA certificate from file, all certificate cloud not be verify properly"<<endl;
+    }else{
+        _certVal->addCertificationAut(caCert);
+    }
 }
 
 int SecureConnection::sendCertificate(X509* cert)
@@ -33,7 +43,7 @@ int SecureConnection::sendCertificate(X509* cert)
     return size;
 }
 
-int SecureConnection::rcvCertificate(X509* cert)
+int SecureConnection::rcvCertificate(X509* &cert)
 {
     unsigned char *buf;
     long size;
@@ -81,15 +91,6 @@ int SecureConnection::recvSecureMsg(void **plainText)
     return plainTextSize;
 }
 
-int SecureConnection::randomInteger(){
-    RAND_poll();
-    
-    int rndNumber; 
-
-    RAND_bytes((unsigned char*) &rndNumber, sizeof(int)); 
-    return rndNumber;  
-}
-
 int SecureConnection::concatenate(unsigned char* src1, uint32_t len1, unsigned char* src2, uint32_t len2, unsigned char* &dest)
 {
     int destSize = len1 + len2 + 2*sizeof(uint32_t);
@@ -113,11 +114,53 @@ int SecureConnection::concatenate(unsigned char* src1, uint32_t len1, unsigned c
     return currentPos;
 }
 
-int SecureConnection::computeSharedKey(DH *dh_session, BIGNUM *bn, unsigned char* &sharedkey)
+void SecureConnection::computeSharedKeys(DH *dh_session, BIGNUM *bn)
 {   
-    sharedkey = (unsigned char*) malloc(sizeof(unsigned char) *DH_size(dh_session));
+    unsigned char*  sharedkey = (unsigned char*) malloc(sizeof(unsigned char) *DH_size(dh_session));
 
-    return DH_compute_key(sharedkey, bn, dh_session);
+    int sharedkey_size = DH_compute_key(sharedkey, bn, dh_session);
+
+    _sMsgCreator->derivateKeys(sharedkey,sharedkey_size);
+    
+    //TODO: Fare MEMESET \0 di sharedKey
+    free(sharedkey);
+}
+
+void SecureConnection::sendAutenticationAndFreshness(unsigned char* expectedMsg,int msgLen, EVP_PKEY* privKey, X509* cert){
+    unsigned char *signature;
+    int signatureLen;
+
+    signatureLen = _sMsgCreator->sign(expectedMsg, msgLen, privKey, signature);
+    sendSecureMsg(signature, signatureLen);
+
+    int ret = sendCertificate(cert);
+    
+    free(signature);
+}
+
+bool SecureConnection::recvAutenticationAndVerify(unsigned char* expectedMsg,int expectedMsgLen)
+{
+    unsigned char *signature;
+    int signatureLen;
+
+    X509* cert;
+    int certSize;
+
+    signatureLen = recvSecureMsg((void**)&signature);
+
+    certSize = rcvCertificate(cert);
+
+    //_certVal->verifyCertificate(cert);
+    
+    EVP_PKEY* pubKey = _certVal->extractPubKeyFromCertificate(cert);
+
+    //bool  signResult = _sMsgCreator->verify(expectedMsg, expectedMsgLen, signature, signatureLen, pubKey);
+    bool signResult = false;
+    
+    free(signature);
+    X509_free(cert);
+
+    return signResult;
 }
 
 void SecureConnection::establishConnectionServer()
@@ -127,8 +170,6 @@ void SecureConnection::establishConnectionServer()
     
     DH_generate_key(dh_session);
 
-    cout<<"[DEBUG] PrivateKey generated"<<endl;
-
     unsigned char* Yc;
     int YcLen;
 
@@ -137,18 +178,8 @@ void SecureConnection::establishConnectionServer()
     BIGNUM *bnYc;
     bnYc = BN_bin2bn(Yc, YcLen, NULL);
 
-    free(Yc);
+    computeSharedKeys(dh_session, bnYc);
 
-    unsigned char *sharedkey;
-    int sharedkey_size;
-    
-    sharedkey = (unsigned char*) malloc(sizeof(unsigned char) *DH_size(dh_session));
-
-    sharedkey_size = DH_compute_key(sharedkey, bnYc, dh_session);
-    
-    _sMsgCreator->derivateKeys(sharedkey,sharedkey_size);
-    free(sharedkey);
-    
     BN_free(bnYc);
 
     BIGNUM *bnYs = (BIGNUM *) DH_get0_pub_key(dh_session);
@@ -160,43 +191,32 @@ void SecureConnection::establishConnectionServer()
 
     _csTCP->sendMsg(Ys, YsLen);
 
-/*
-    unsigned char *msg;
+    BN_free(bnYs);
+    
+    unsigned char* msg;
     int msgLen;
 
-    msgLen = concatenate(Ys, YsLen, Yc, YcLen, msg);
+    msgLen = concatenate(Yc,YcLen,Ys,YsLen,msg);
 
-    EVP_PKEY* privKey = _sMsgCreator->ExtractPrivateKey("rsa_privkey.pem");
-
-    unsigned char *signature;
-    int signatureLen;
-
-    signatureLen = _sMsgCreator->sign(msg, msgLen, privKey, signature);
-
-    sendSecureMsg(signature, signatureLen);
-
-    X509* cert = _sMsgCreator->loadCertificateFromFile("server_cert.pem");
-    int ret = sendCertificate(cert);
-    if(ret < 0)
-    {
-        return;
-    }*/
-
+    free(Yc);
     free(Ys);
-    BN_free(bnYs);
-    //DH_free(dh_session);
+    
+    X509* cert = _certVal->loadCertificateFromFile("my_certificate.pem");
+    EVP_PKEY* privKey = _sMsgCreator->ExtractPrivateKey("rsa_privkey.pem");
+    sendAutenticationAndFreshness(msg,msgLen,privKey,cert);
+    EVP_PKEY_free(privKey);
 
-    //unsigned char* iv;
-    //int ivSize = _csTCP->recvMsg((void **)&iv);
-    //
-    //unsigned char* encryptedKey;
-    //int encryptedKeySize = _csTCP->recvMsg((void **)&encryptedKey);
-    //
-    //unsigned char* encryptedNonce;
-    //int encryptedNonceSize = _csTCP->recvMsg((void **)&encryptedNonce);
-    //
-    //EVP_PKEY* privateKey =  _sMsgCreator->ExtractPrivateKey("rsa_privkey.pem");
-    //throw exception();
+    X509_free(cert);
+
+    bool verifySing = recvAutenticationAndVerify(msg,msgLen);
+    
+    free(msg);
+    //DH_free(dh_session);
+    
+    if(!verifySing)
+    {
+        throw InvalidDigitalSignException();
+    }
 } 
 
 void SecureConnection::establishConnectionClient()
@@ -206,13 +226,7 @@ void SecureConnection::establishConnectionClient()
 
     DH_generate_key(dh_session);
 
-    cout<<"[DEBUG] PrivateKey generated"<<endl;
-
     BIGNUM *bnYc = (BIGNUM *) DH_get0_pub_key(dh_session);
-    if(!bnYc)
-    {
-        cout<<"[ERROR] bnYc is NULL"<<endl;
-    }
     
     unsigned char* Yc = new unsigned char[BN_num_bytes(bnYc)];
     int YcLen;
@@ -221,11 +235,7 @@ void SecureConnection::establishConnectionClient()
 
     BN_free(bnYc);
 
-    cout<<"[_csTCP]"<<(void*)_csTCP<<endl;
     _csTCP->sendMsg((void*) Yc,YcLen);
-    free(Yc);
-
-    cout<<"[DEBUG] Yc sended"<<endl;
 
     unsigned char* Ys;
     int YsLen;
@@ -235,19 +245,36 @@ void SecureConnection::establishConnectionClient()
     BIGNUM *bnYs;
     bnYs = BN_bin2bn(Ys, YsLen, NULL);
 
+    computeSharedKeys(dh_session, bnYs);
+
+    BN_free(bnYs);
+
+    unsigned char* msg;
+    int msgLen;
+
+    msgLen = concatenate(Yc,YcLen,Ys,YsLen,msg);
+
+    free(Yc);
     free(Ys);
 
-    unsigned char *sharedkey;
-    int sharedkey_size;
-    
-    sharedkey = (unsigned char*) malloc(sizeof(unsigned char) *DH_size(dh_session));
+    bool verifySing = recvAutenticationAndVerify(msg,msgLen);
 
-    sharedkey_size = DH_compute_key(sharedkey, bnYs, dh_session);
+    if(!verifySing)
+    {
+        free(msg);
+        throw InvalidDigitalSignException(); 
+    }
+
+    X509* cert = _certVal->loadCertificateFromFile("my_certificate.pem");
+    EVP_PKEY* privKey = _sMsgCreator->ExtractPrivateKey("rsa_privkey.pem");
+    sendAutenticationAndFreshness(msg,msgLen,privKey,cert);
+    //TODO: MEMSET CHIAVE PRIVATA
     
-    _sMsgCreator->derivateKeys(sharedkey,sharedkey_size);
-    free(sharedkey);
-    BN_free(bnYs);
-    DH_free(dh_session);
+    EVP_PKEY_free(privKey);
+    X509_free(cert);
+    free(msg);
+    
+    //DH_free(dh_session);
 } 
 
 int SecureConnection::sendFile(ifstream &file, bool stars)

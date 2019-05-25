@@ -3,7 +3,6 @@
 #include <openssl/conf.h>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
-#include <openssl/x509_vfy.h>
 #include <iostream>
 #include <unistd.h>
 #include <string.h>
@@ -64,12 +63,10 @@ SecureMessageCreator::SecureMessageCreator()
 
   //size of the hash
   _hashSize = EVP_MD_size(_hashAlgorithm);
-
-  //derivateKeys((unsigned char*)"ciao mamma come stai?",22);
 }
 
 bool SecureMessageCreator::derivateKeys(unsigned char* inizializationKey, size_t ikSize){
-  cout<<"[DEBUG] generating session and HMAC keys..."<<endl;
+  //cout<<"[DEBUG] generating session and HMAC keys..."<<endl;
   
   size_t halfSize = ikSize/2;
   unsigned char* firstPart = inizializationKey;
@@ -86,8 +83,8 @@ bool SecureMessageCreator::derivateKeys(unsigned char* inizializationKey, size_t
   _hmac_key = (unsigned char *)malloc(_hmacKeySize);
   memcpy(_hmac_key, tmpSha256, _hmacKeySize);
   
-  cout<<"[DEBUG] hash key:"<<endl;
-  BIO_dump_fp(stdout,(char*)_hmac_key,_hmacKeySize);
+  //cout<<"[DEBUG] hash key:"<<endl;
+  //BIO_dump_fp(stdout,(char*)_hmac_key,_hmacKeySize);
 
   if(!simpleHash256(secondPart,ikSize-halfSize,tmpSha256)){
     cout<<"[DEBUG] error computing simple hash for generating hash key"<<endl;
@@ -96,8 +93,8 @@ bool SecureMessageCreator::derivateKeys(unsigned char* inizializationKey, size_t
   }
   _encrypt_key = (unsigned char *)malloc(_encriptKeySize);
   memcpy(_encrypt_key, tmpSha256, _encriptKeySize);
-  cout<<"[DEBUG] session key:"<<endl;
-  BIO_dump_fp(stdout,(char*)_encrypt_key,_encriptKeySize);
+  //cout<<"[DEBUG] session key:"<<endl;
+  //BIO_dump_fp(stdout,(char*)_encrypt_key,_encriptKeySize);
 
   free(tmpSha256);
   return true;
@@ -117,7 +114,7 @@ bool SecureMessageCreator::simpleHash256(unsigned char* input,size_t inputLenght
     return true;
 }
 
-unsigned char *SecureMessageCreator::sign(unsigned char *inBuf, int inLen)
+unsigned char *SecureMessageCreator::hash(unsigned char *inBuf, int inLen)
 {
   unsigned char *outBuf;
 
@@ -203,12 +200,12 @@ int SecureMessageCreator::decrypt(unsigned char *cipherText, int cipherTextLen, 
   return decriptedTextLen;
 }
 
-bool SecureMessageCreator::check_hash(unsigned char *inBuf, int bufLen, unsigned char *hash)
+bool SecureMessageCreator::check_hash(unsigned char *inBuf, int bufLen, unsigned char *givenHash)
 {
   unsigned char *calculatedHash;
-  calculatedHash = sign(inBuf, bufLen);
+  calculatedHash = hash(inBuf, bufLen);
   //cout<<"[calculatedHash]"<<calculatedHash<<endl;
-  bool result = CRYPTO_memcmp(hash, calculatedHash, _hashSize) == 0;
+  bool result = CRYPTO_memcmp(givenHash, calculatedHash, _hashSize) == 0;
   free(calculatedHash);
   return result;
 }
@@ -217,7 +214,7 @@ int SecureMessageCreator::EncryptAndSignMessage(unsigned char *plainText, int pl
 {
   //cout<<"[plainText]"<<plainText<<endl;
 
-  unsigned char *hashSign = sign(plainText, plainTextLen);
+  unsigned char *hashSign = hash(plainText, plainTextLen);
 
   //cout<<"[HASH SIGN]"<<hashSign<<endl;
 
@@ -303,104 +300,7 @@ EVP_PKEY* SecureMessageCreator::ExtractPrivateKey(const char* filename)
   return privKey;
 }
 
-int SecureMessageCreator::ExctractSessionMesssage(unsigned char *cipherText, int cipherLen,unsigned char* encryptedKey, int encryptedKeyLen, 
-    unsigned char *iv, EVP_PKEY* privKey, unsigned char *&plainText)
-{
-  plainText = (unsigned char*) malloc(cipherLen);
-  int outLen, plainTextLen;
-
-  EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-  int ret = EVP_OpenInit(ctx, EVP_aes_128_cbc(), encryptedKey, encryptedKeyLen, iv, privKey);
-  if(ret == 0){
-      cout<<"[ERROR] not possible inizialize decryption structures"<<endl;
-      exit(-5);
-  }
-
-  EVP_OpenUpdate(ctx, plainText, &outLen, cipherText, cipherLen);
-  plainTextLen = outLen;
-
-  EVP_OpenFinal(ctx, plainText + plainTextLen, &outLen);
-  if(ret == 0){
-      cout<<"[ERROR] EVP_OpenFinal has crashed"<<endl;
-      exit(-5);
-  }
-  plainTextLen += outLen;
-
-  EVP_CIPHER_CTX_free(ctx);
-
-  return plainTextLen;
-}
-
-int SecureMessageCreator::CreateSessionMessage(const char* plaintext, size_t plaintextSize, EVP_PKEY* pubKey, unsigned char* &encryptedKey, 
-    int &encryptedKeySize,unsigned char* &iv, int &ivSize,unsigned char* &chipertext)
-{
-  encryptedKey = (unsigned char*) malloc(EVP_PKEY_size(pubKey));
-  cout<<"[DEBUG|KeySize]"<<EVP_PKEY_size(pubKey)<<endl;
-
-  chipertext = (unsigned char*) malloc(plaintextSize+16);
-  int chipertextSize, outputSize;
-  EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
-  ivSize = EVP_CIPHER_iv_length(EVP_aes_128_cbc());
-  iv = (unsigned char*) malloc(ivSize);
-  int ret = EVP_SealInit(ctx, EVP_aes_128_cbc(), &encryptedKey, &encryptedKeySize,iv, &pubKey, 1); 
-  if(ret == 0){
-      cout<<"[ERROR] not possible inizialize encryption structures"<<endl;
-      exit(-5);
-  }
-  cout<<"[DEBUG|EnKeySize]"<<encryptedKeySize<<endl;
-  EVP_SealUpdate(ctx,chipertext,&outputSize, (unsigned char*)plaintext,plaintextSize);
-  chipertextSize = outputSize;
-
-  EVP_SealFinal(ctx,chipertext+chipertextSize,&outputSize);
-  chipertextSize+=outputSize;
-  EVP_CIPHER_CTX_free(ctx);
-
-  return chipertextSize;
-} 
-
-void SecureMessageCreator::caStoreInit(X509* cert, X509_CRL* crl){
-    _store = X509_STORE_new();
-}
-
-bool SecureMessageCreator::verifyCertificate(X509* cert){
-    if(_store == NULL){
-      return false;
-    }
-    X509_STORE_CTX* ctx= X509_STORE_CTX_new();
-
-    X509_STORE_CTX_init(ctx, _store, cert, NULL);
-    int ret = X509_verify_cert(ctx);//return 1 on success
-
-    X509_STORE_CTX_free(ctx);
-
-    return ret==1;
-}
-
-X509* SecureMessageCreator::loadCertificateFromFile(const char* filename){
-    X509* cert;
-    FILE* file = fopen(filename, "r");
-
-    if(!file){
-        cerr<<"ERROR opening file"<<endl;
-        return cert;
-    }
-    
-    cert = PEM_read_X509(file, NULL, NULL, NULL);
-    
-    if(!cert){
-        cerr<<"ERROR pem read x509"<<endl;
-        return cert;
-    }
-
-    fclose(file);
-    return cert;
-}
-
-bool SecureMessageCreator::addCertificateToStore(X509* cert){
-  return X509_STORE_add_cert(_store,cert) == 1;
-}
-
-unsigned int SecureMessageCreator::sign(char* msg, int msgSize, EVP_PKEY* privKey, unsigned char* &signature)
+unsigned int SecureMessageCreator::sign(unsigned char* msg, int msgSize, EVP_PKEY* privKey, unsigned char* &signature)
 {
 	unsigned int signatureLen;
 
@@ -428,3 +328,4 @@ bool SecureMessageCreator::verify(unsigned char *msg, int msgSize, unsigned char
 	EVP_MD_CTX_free(ctx);
 	return ret == 1;
 }
+

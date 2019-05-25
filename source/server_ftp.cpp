@@ -63,10 +63,7 @@ void retriveListCommand()
 		readFile.close();
 		return;
 	}
-
-	cout << "[DEBUG] file open" << endl;
-
-	cout << "[DEBUG] sending fileList.txt" << endl;
+	
 	try
 	{
 		_secureConnection->sendFile(readFile, false);
@@ -94,7 +91,7 @@ void retriveListCommand()
 void retriveFileCommand(string fileName)
 {
 	string pathFileName = "uploadedFiles/" + fileName;
-	cout<<"[DEBUGpathfileRF]"<<pathFileName<<endl;
+	
 	ifstream readFile;
 	readFile.open(pathFileName.c_str(), ios::in | ios::binary);
 	if (!readFile.is_open())
@@ -130,7 +127,6 @@ stringstream receiveCommad()
 
 	bytesRecived = _secureConnection->recvSecureMsg((void **)&command);
 
-	cout << "[DEBUG msg]" << command << endl;
 	res << command;
 
 	free((void *)command);
@@ -159,7 +155,7 @@ void manageConnection()
 		return;
 	}
 	commandStream >> command;
-	cout << "[DEBUG command] '" << command << "'" << endl;
+	cout << "[INFO command] '" << command << "'" << endl;
 
 	if (command == "u")
 	{
@@ -197,19 +193,23 @@ int main(int num_args, char *args[])
 	{
 		cout << "[INFO] Wainting for a connection." << endl;
 		_activeSocket = _server->acceptNewConnecction();
+		
 		try
 		{
+			cout<<"[INFO] enstablishing secure connection with the client."<<endl;
 			_secureConnection->establishConnectionServer();
 		}
 		catch(const exception& e)
 		{
-			cerr << e.what() << '\n';
+			cout<<"[ERROR] secure connection with client failed:"<<endl;
+        	cout<<"\t"<<"Reason: "<< e.what() << endl<<endl;
 			continue;
 		}
+		cout<<"[INFO] secure connection ensablished, "<<endl;
 		
 		if (_activeSocket >= 0)
 		{
-			cout << "[INFO] New client connected." << endl;
+			cout << "new client connected." << endl;
 		}
 
 		while (_activeSocket >= 0)

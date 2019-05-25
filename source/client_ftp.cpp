@@ -181,13 +181,16 @@ int main(int num_args, char *args[])
     
     try
     {
+        cout<<"[INFO] enstablishing secure connection with the server."<<endl;
         _secureConnection->establishConnectionClient();
     }
     catch(const std::exception& e)
     {
-        std::cerr << e.what() << '\n';
+        cout<<"[ERROR] secure connection with server failed:"<<endl;
+        cout<<"\t"<<"Reason: "<< e.what() << endl<<endl;
         return -1;
     }
+    cout<<"[INFO] secure connection ensablished."<<endl;
 
     string command;
     string argument;

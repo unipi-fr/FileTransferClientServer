@@ -1,5 +1,6 @@
 #include "IClientServerTCP.h"
 #include "SecureMessageCreator.h"
+#include "CertificationValidator.h"
 #include <exception>
 #include <fstream>
 
@@ -37,25 +38,35 @@ class FileNotOpenException : public SecureConnectionException
     }
 };
 
+class InvalidDigitalSignException : public SecureConnectionException
+{
+    const char *what() const throw()
+    {
+        return "Digital signature not valid";
+    }
+};
+
 class SecureConnection
 {
 private:
     IClientServerTCP *_csTCP;
     SecureMessageCreator *_sMsgCreator;
+    CertificationValidator* _certVal;
 
-    int randomInteger();
     int concatenate(unsigned char* src1, uint32_t len1, unsigned char* src2, uint32_t len2, unsigned char* &dest);
 
+    void computeSharedKeys(DH *dh_session, BIGNUM *bn);
 public:
     SecureConnection(IClientServerTCP *csTCP);
 
     int sendCertificate(X509* cert);
-    int rcvCertificate(X509* cert);
+    int rcvCertificate(X509* &cert);
 
     void sendSecureMsg(void *buffer, size_t bufferSize);
     int recvSecureMsg(void **plainText);
 
-    int computeSharedKey(DH *dh_session, BIGNUM *bn, unsigned char* &sharedkey);
+    void sendAutenticationAndFreshness(unsigned char* expectedMsg, int msgLen, EVP_PKEY* privKey, X509* cert);
+    bool recvAutenticationAndVerify(unsigned char* msg,int msgLen);
 
     void establishConnectionServer();
     void establishConnectionClient();
@@ -208,4 +219,6 @@ public:
     int sendFile(std::ifstream &file, bool stars);
     int receiveFile(const char *filename, bool stars);
     int reciveAndPrintBigMessage();
+
+    
 };
