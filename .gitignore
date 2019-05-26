@@ -3,8 +3,10 @@
 uploadedFiles/
 downloadedFiles/
 client/
-server/
+server/server_ftp
+server/uploadedFiles
 tmp/
+labs/
 
 #excluded files
 *.mp4

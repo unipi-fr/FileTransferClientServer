@@ -5,6 +5,9 @@
 #include <arpa/inet.h>	//standard per l'ordine dei byte
 #include <unistd.h>
 
+#include <iostream>
+using namespace std;
+
 
 void ClientTCP::serverStructInit()
 {

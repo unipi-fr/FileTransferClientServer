@@ -1,6 +1,7 @@
 #include "SecureConnection.h"
 #include "ClientTCP.h"
 #include <limits.h>
+#include <iostream>
 using namespace std;
 
 SecureConnection *_secureConnection;
@@ -9,25 +10,23 @@ ClientTCP *_client;
 void sendUploadCommand(string file)
 {
     string msg = "u " + file;
-    _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length());
+    _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length()+1);
 }
 
 void sendRetriveListCommand()
 {
     string msg = "rl";
-    _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length());
+    _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length()+1);
 }
 
 void sendRetriveFileCommand(string file)
 {
     string msg = "rf " + file;
-    _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length());
+    _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length()+1);
 }
 
 void uploadCommand(string argument)
 {
-    cout << "[DEBUG] entering uppload command" << endl;
-
     ifstream readFile;
 
     readFile.open(argument.c_str(), ios::in | ios::binary | ios::ate);
@@ -36,6 +35,7 @@ void uploadCommand(string argument)
         cerr << "[ERORR] file doesn't exists" << endl;
         return;
     }
+
     try
     {
         sendUploadCommand(argument);
@@ -46,8 +46,6 @@ void uploadCommand(string argument)
         readFile.close();
         return;
     }
-
-    //cout << "[DEBUG] command sended" << endl;
 
     try
     {
@@ -63,7 +61,6 @@ void uploadCommand(string argument)
 
 void retriveListCommand()
 {
-    //cout << "Called 'Retrive-List'" << endl;
     try
     {
         sendRetriveListCommand();
@@ -73,7 +70,7 @@ void retriveListCommand()
         cerr << "[ERROR] A network error has occoured sending the command" << endl;
         return;
     }
-    //cout << "[DEBUG] command sended" << endl;
+    
     try
     {
         _secureConnection->reciveAndPrintBigMessage();
@@ -86,7 +83,6 @@ void retriveListCommand()
 
 void retriveFileCommand(string filename)
 {
-        //cout << "Called 'Retrive-File'" << endl;
     try
     {
         sendRetriveFileCommand(filename);
@@ -96,7 +92,7 @@ void retriveFileCommand(string filename)
         cerr << "[ERROR] A network error has occoured sending the command" << endl;
         return;
     }
-    //cout << "[DEBUG] command sended" << endl;
+    
     system("mkdir -p tmp");
 	string tmpFile  = "tmp/tmp.txt";
     string cmd;
@@ -121,6 +117,13 @@ void retriveFileCommand(string filename)
         system("rm -r tmp");
         throw hnve;
     }
+    catch (const FileDoesNotExistsException &fdnee)
+    {
+        cout<<fdnee.what()<<endl;
+        system("rm -r tmp");
+        return;
+    }
+
     cmd = "mv " + tmpFile+ " " + filename;
 	system(cmd.c_str());
     system("rm -r tmp");
@@ -175,6 +178,19 @@ int main(int num_args, char *args[])
     cout << "Successfull connected to the server " << ipServer << " (PORT: " << portNumber << ")" << endl;
 
     _secureConnection = new SecureConnection(_client);
+    
+    try
+    {
+        cout<<"[INFO] enstablishing secure connection with the server."<<endl;
+        _secureConnection->establishConnectionClient();
+    }
+    catch(const std::exception& e)
+    {
+        cout<<"[ERROR] secure connection with server failed:"<<endl;
+        cout<<"\t"<<"Reason: "<< e.what() << endl<<endl;
+        return -1;
+    }
+    cout<<"[INFO] secure connection ensablished."<<endl;
 
     string command;
     string argument;
