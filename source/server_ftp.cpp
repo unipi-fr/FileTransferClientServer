@@ -20,9 +20,19 @@ void disconnectClient()
 
 void uploadCommand(string fileName)
 {
+	try
+	{
+		Sanitizator::checkOsCommand(filename);
+	}
+	catch (const exception &e)
+	{
+		cerr << e.what() << endl;
+		return;
+	}
+
 	string cmd;
 	system("mkdir -p uploadedFiles");
-	string tmpFile  = "tmp.txt";
+	string tmpFile = "tmp.txt";
 
 	try
 	{
@@ -63,7 +73,7 @@ void retriveListCommand()
 		readFile.close();
 		return;
 	}
-	
+
 	try
 	{
 		_secureConnection->sendFile(readFile, false);
@@ -72,14 +82,15 @@ void retriveListCommand()
 	{
 		cerr << "[ERROR] A network error has occoured sending the dile list" << endl;
 		disconnectClient();
-	}/*
+	} /*
 	catch (const ErrorOnOtherPartException &eope)
 	{
 		cerr << "[ERROR] Failed to upload a part of the file list (Hash was not valid)" << endl;
 		disconnectClient();
 	}*/
-	catch(const SecureConnectionException &sce){
-		cerr<<"[ERROR] "<<sce.what()<<endl;
+	catch (const SecureConnectionException &sce)
+	{
+		cerr << "[ERROR] " << sce.what() << endl;
 		disconnectClient();
 	}
 
@@ -90,8 +101,18 @@ void retriveListCommand()
 
 void retriveFileCommand(string fileName)
 {
+	try
+	{
+		Sanitizator::checkOsCommand(filename);
+	}
+	catch (const exception &e)
+	{
+		cerr << e.what() << endl;
+		return;
+	}
+
 	string pathFileName = "uploadedFiles/" + fileName;
-	
+
 	ifstream readFile;
 	readFile.open(pathFileName.c_str(), ios::in | ios::binary);
 	if (!readFile.is_open())
@@ -100,7 +121,7 @@ void retriveFileCommand(string fileName)
 		cout << "[WARNING] not possible open the file or the file demanded doesn't exist." << endl;
 
 		string strFileSize = to_string((long)-1);
-    	_secureConnection->sendSecureMsg((void *)strFileSize.c_str(), strFileSize.length());
+		_secureConnection->sendSecureMsg((void *)strFileSize.c_str(), strFileSize.length());
 
 		return;
 	}
@@ -134,6 +155,7 @@ stringstream receiveCommad()
 	res << command;
 
 	free((void *)command);
+
 	return res;
 }
 
@@ -153,19 +175,19 @@ void manageConnection()
 		cerr << "[ERROR] A network error has occoured receiving the command" << endl;
 		disconnectClient();
 		return;
-	}catch(const SecureConnectionException &se){
-		cerr<<"[ERROR] "<<se.what()<<endl;
+	}
+	catch (const SecureConnectionException &se)
+	{
+		cerr << "[ERROR] " << se.what() << endl;
 		disconnectClient();
 		return;
 	}
 	commandStream >> command;
-	cout << "[INFO command] '" << command << "'" << endl;
+	cout << "[COMMAND] '" << command << "'" << endl;
 
 	if (command == "u")
 	{
 		commandStream >> filename;
-		//cout<<"[DEBUG filename]"<<filename<<endl;
-		//cout<<"[DEBUG filesize]"<<fileSize<<endl;
 		uploadCommand(filename);
 	}
 	if (command == "rl")
@@ -181,24 +203,31 @@ void manageConnection()
 
 int main(int num_args, char *args[])
 {
+	// check parameter
 	if (num_args != 2)
 	{
-		cout<<endl<<"[ERRORE] Number of parameter not valid."<<endl;
-		cout<<"Usage: "<<args[0]<<" <portNumber>"<<endl;
-		cout<<"closing progam..."<<endl<<endl;
+		cout << endl
+			 << "[ERRORE] Number of parameter not valid." << endl;
+		cout << "Usage: " << args[0] << " <portNumber>" << endl;
+		cout << "closing progam..." << endl
+			 << endl;
 		return -1;
 	}
-	
+
 	unsigned short portNumber;
-	try{
+
+	try
+	{
 		portNumber = Sanitizator::checkPortNumber(args[1]);
 	}
-	catch(const PortNumberException &pne)
+	catch (const PortNumberException &pne)
 	{
-		cout<<pne.what()<<endl;
-		cout<<"closing progam..."<<endl<<endl;
+		cout << pne.what() << endl;
+		cout << "closing progam..." << endl
+			 << endl;
 		return -1;
 	}
+	// end check param
 
 	_server = new ServerTCP(portNumber);
 	_secureConnection = new SecureConnection(_server);
@@ -208,20 +237,22 @@ int main(int num_args, char *args[])
 	{
 		cout << "[INFO] Wainting for a connection." << endl;
 		_activeSocket = _server->acceptNewConnecction();
-		
+
 		try
 		{
-			cout<<"[INFO] enstablishing secure connection with the client."<<endl;
+			cout << "[INFO] enstablishing secure connection with the client." << endl;
 			_secureConnection->establishConnectionServer();
 		}
-		catch(const exception &e)
+		catch (const exception &e)
 		{
-			cout<<"[ERROR] secure connection with client failed:"<<endl;
-        	cout<<"\t"<<"Reason: "<< e.what() << endl<<endl;
+			cout << "[ERROR] secure connection with client failed:" << endl;
+			cout << "\t"
+				 << "Reason: " << e.what() << endl
+				 << endl;
 			continue;
 		}
-		cout<<"[INFO] secure connection ensablished, ";
-		
+		cout << "[INFO] secure connection ensablished" <<endl;
+
 		if (_activeSocket >= 0)
 		{
 			cout << "new client connected." << endl;
@@ -243,7 +274,7 @@ int main(int num_args, char *args[])
 				cout << "[ERROR] An Unexpected exceptions occours:" << endl;
 				cerr << e.what() << endl;
 
-				disconnectClient();				
+				disconnectClient();
 			}
 		}
 	}

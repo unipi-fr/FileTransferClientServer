@@ -1,6 +1,10 @@
 #include <exception>
+
 #define MAX_PORT_NUMBER 65535
 #define MIN_PORT_NUMBER 1024
+#define MAX_IP_ADDRESS_SUBNUM 255
+#define MIN_IP_ADDRESS_SUBNUM 0
+#define MAX_IP_ADDRESS_NUM 4
 
 class SanitizatorException : public std::exception
 {
@@ -17,10 +21,32 @@ class PortNumberException : public SanitizatorException
     }
 };
 
+class IpAddressException : public SanitizatorException
+{
+    public:
+    const char *what() const throw()
+    {
+        return "Ip address not valid";
+    }
+};
+
+class DangerousNameException : public SanitizatorException
+{
+    public:
+    const char *what() const throw()
+    {
+        return "Name not Valid";
+    }
+};
+
 class Sanitizator{
     private:
-        static const char* numbers;
+        static const char* numbersValidator;
+        static const char* ipAddressValidator;
+        static const char* osCommandValidator;
     
     public:
         static unsigned short checkPortNumber(char* param);
+        static string checkIpAddress(char* param);
+        static void checkOsCommand(char* param);
 };

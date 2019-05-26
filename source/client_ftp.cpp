@@ -1,5 +1,6 @@
 #include "SecureConnection.h"
 #include "ClientTCP.h"
+#include "Sanitizator.h"
 #include <limits.h>
 #include <iostream>
 using namespace std;
@@ -10,26 +11,37 @@ ClientTCP *_client;
 void sendUploadCommand(string file)
 {
     string msg = "u " + file;
-    _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length()+1);
+    _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length() + 1);
 }
 
 void sendRetriveListCommand()
 {
     string msg = "rl";
-    _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length()+1);
+    _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length() + 1);
 }
 
 void sendRetriveFileCommand(string file)
 {
     string msg = "rf " + file;
-    _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length()+1);
+    _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length() + 1);
 }
 
-void uploadCommand(string argument)
+void uploadCommand(string filename) //changed argument with filename
 {
     ifstream readFile;
 
-    readFile.open(argument.c_str(), ios::in | ios::binary | ios::ate);
+    try
+    {
+        Sanitizator::checkOsCommand(filename);
+    }
+    catch(const exception& e)
+    {
+        cerr << e.what() << endl;
+        return;
+    }
+    
+
+    readFile.open(filename.c_str(), ios::in | ios::binary | ios::ate);
     if (!readFile.is_open())
     {
         cerr << "[ERORR] file doesn't exists" << endl;
@@ -38,7 +50,7 @@ void uploadCommand(string argument)
 
     try
     {
-        sendUploadCommand(argument);
+        sendUploadCommand(filename);
     }
     catch (const NetworkException &e)
     {
@@ -70,7 +82,7 @@ void retriveListCommand()
         cerr << "[ERROR] A network error has occoured sending the command" << endl;
         return;
     }
-    
+
     try
     {
         _secureConnection->reciveAndPrintBigMessage();
@@ -85,6 +97,16 @@ void retriveFileCommand(string filename)
 {
     try
     {
+        Sanitizator::checkOsCommand(filename);
+    }
+    catch(const exception& e)
+    {
+        cerr << e.what() << endl;
+        return;
+    }
+
+    try
+    {
         sendRetriveFileCommand(filename);
     }
     catch (const NetworkException &e)
@@ -92,9 +114,9 @@ void retriveFileCommand(string filename)
         cerr << "[ERROR] A network error has occoured sending the command" << endl;
         return;
     }
-    
+
     system("mkdir -p tmp");
-	string tmpFile  = "tmp/tmp.txt";
+    string tmpFile = "tmp/tmp.txt";
     string cmd;
 
     try
@@ -113,19 +135,19 @@ void retriveFileCommand(string filename)
         return;
     }
     catch (const HashNotValidException &hnve)
-    {     
+    {
         system("rm -r tmp");
         throw hnve;
     }
     catch (const FileDoesNotExistsException &fdnee)
     {
-        cout<<fdnee.what()<<endl;
+        cout << fdnee.what() << endl;
         system("rm -r tmp");
         return;
     }
 
-    cmd = "mv " + tmpFile+ " " + filename;
-	system(cmd.c_str());
+    cmd = "mv " + tmpFile + " " + filename;
+    system(cmd.c_str());
     system("rm -r tmp");
 }
 
@@ -163,8 +185,19 @@ int main(int num_args, char *args[])
         return -1;
     }
 
-    string ipServer = args[1];
-    unsigned short portNumber = atoi(args[2]);
+    string ipServer;
+    unsigned short portNumber;
+
+    try
+    {
+        ipServer = Sanitizator::checkIpAddress(args[1]);
+        portNumber = Sanitizator::checkPortNumber(args[2]);
+    }
+    catch(const exception& e)
+    {
+        cerr << e.what() << endl;
+        return -1;
+    }
     // end parameter read
 
     _client = new ClientTCP(ipServer.c_str(), portNumber);
@@ -178,19 +211,21 @@ int main(int num_args, char *args[])
     cout << "Successfull connected to the server " << ipServer << " (PORT: " << portNumber << ")" << endl;
 
     _secureConnection = new SecureConnection(_client);
-    
+
     try
     {
-        cout<<"[INFO] enstablishing secure connection with the server."<<endl;
+        cout << "[INFO] enstablishing secure connection with the server." << endl;
         _secureConnection->establishConnectionClient();
     }
-    catch(const std::exception& e)
+    catch (const std::exception &e)
     {
-        cout<<"[ERROR] secure connection with server failed:"<<endl;
-        cout<<"\t"<<"Reason: "<< e.what() << endl<<endl;
+        cout << "[ERROR] secure connection with server failed:" << endl;
+        cout << "\t"
+             << "Reason: " << e.what() << endl
+             << endl;
         return -1;
     }
-    cout<<"[INFO] secure connection ensablished."<<endl;
+    cout << "[INFO] secure connection ensablished." << endl;
 
     string command;
     string argument;
@@ -237,7 +272,8 @@ int main(int num_args, char *args[])
         cerr << "Server disconnected." << endl;
         cout << "Closing program...  Bye bye :)" << endl;
     }
-    catch(const HashNotValidException &hnve){
+    catch (const HashNotValidException &hnve)
+    {
         cerr << "[ERROR] Failed to download a part of the message (Hash was not valid)" << endl;
         _client->closeConnection();
     }
