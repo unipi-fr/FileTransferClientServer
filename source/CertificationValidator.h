@@ -1,5 +1,6 @@
 #include <openssl/x509.h>
 #include <exception>
+#include <string>
 
 class CertificationValidatorException : public std::exception
 {
@@ -16,12 +17,25 @@ class FileNotFoundException : public CertificationValidatorException
     }
 };
 
+class CertificateNotValidException : public CertificationValidatorException
+{
+    public:
+    const char *what() const throw()
+    {
+        return "Not valid Certificate";
+    }
+};
+
 class CertificationValidator{
 private:
     X509_STORE* _store;
+    std::string* _names;
+    int _numberOfNames;
+
+    bool verifyName(std::string nameToVerify);
 
 public:
-    CertificationValidator();
+    CertificationValidator(std::string* names, int dim);
 
     bool verifyCertificate(X509* cert);
     X509* loadCertificateFromFile(const char* filename);

@@ -17,8 +17,6 @@ void sendRetriveListCommand()
 {
     string msg = "rl";
     _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length()+1);
-    //char msg[] = "rl";
-    //_secureConnection->sendSecureMsg((void *)msg, 3);
 }
 
 void sendRetriveFileCommand(string file)
@@ -29,8 +27,6 @@ void sendRetriveFileCommand(string file)
 
 void uploadCommand(string argument)
 {
-    cout << "[DEBUG] entering uppload command" << endl;
-
     ifstream readFile;
 
     readFile.open(argument.c_str(), ios::in | ios::binary | ios::ate);
@@ -39,6 +35,7 @@ void uploadCommand(string argument)
         cerr << "[ERORR] file doesn't exists" << endl;
         return;
     }
+
     try
     {
         sendUploadCommand(argument);
@@ -49,8 +46,6 @@ void uploadCommand(string argument)
         readFile.close();
         return;
     }
-
-    //cout << "[DEBUG] command sended" << endl;
 
     try
     {
@@ -66,7 +61,6 @@ void uploadCommand(string argument)
 
 void retriveListCommand()
 {
-    //cout << "Called 'Retrive-List'" << endl;
     try
     {
         sendRetriveListCommand();
@@ -76,7 +70,7 @@ void retriveListCommand()
         cerr << "[ERROR] A network error has occoured sending the command" << endl;
         return;
     }
-    //cout << "[DEBUG] command sended" << endl;
+    
     try
     {
         _secureConnection->reciveAndPrintBigMessage();
@@ -89,7 +83,6 @@ void retriveListCommand()
 
 void retriveFileCommand(string filename)
 {
-        //cout << "Called 'Retrive-File'" << endl;
     try
     {
         sendRetriveFileCommand(filename);
@@ -99,7 +92,7 @@ void retriveFileCommand(string filename)
         cerr << "[ERROR] A network error has occoured sending the command" << endl;
         return;
     }
-    //cout << "[DEBUG] command sended" << endl;
+    
     system("mkdir -p tmp");
 	string tmpFile  = "tmp/tmp.txt";
     string cmd;
@@ -124,6 +117,13 @@ void retriveFileCommand(string filename)
         system("rm -r tmp");
         throw hnve;
     }
+    catch (const FileDoesNotExistsException &fdnee)
+    {
+        cout<<fdnee.what()<<endl;
+        system("rm -r tmp");
+        return;
+    }
+
     cmd = "mv " + tmpFile+ " " + filename;
 	system(cmd.c_str());
     system("rm -r tmp");

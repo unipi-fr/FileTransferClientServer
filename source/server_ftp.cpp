@@ -1,4 +1,5 @@
 #include "SecureConnection.h"
+#include "Sanitizator.h"
 #include "ServerTCP.h"
 #include <iostream>
 #include <fstream>
@@ -51,7 +52,6 @@ void uploadCommand(string fileName)
 void retriveListCommand()
 {
 	cout << "[INFO] creating list" << endl;
-	//system("stat -c "%n |  %s Bytes" uploadedFiles/*  | awk -F/ '{print $NF}'");
 	system("ls -s -h -1 uploadedFiles/ > fileList.txt");
 
 	ifstream readFile;
@@ -97,7 +97,11 @@ void retriveFileCommand(string fileName)
 	if (!readFile.is_open())
 	{
 		//TODO: avvisare il clien che il file non esiste
-		cerr << "[ERROR] not possible open the file." << endl;
+		cout << "[WARNING] not possible open the file or the file demanded doesn't exist." << endl;
+
+		string strFileSize = to_string((long)-1);
+    	_secureConnection->sendSecureMsg((void *)strFileSize.c_str(), strFileSize.length());
+
 		return;
 	}
 
@@ -177,13 +181,24 @@ void manageConnection()
 
 int main(int num_args, char *args[])
 {
-	srand(time(NULL));
 	if (num_args != 2)
 	{
-		printf("\nERRORE: Numero dei parametri non valido.\nUsage: %s <portNumber>\nchiusura programma...\n", args[0]);
-		exit(-2);
+		cout<<endl<<"[ERRORE] Number of parameter not valid."<<endl;
+		cout<<"Usage: "<<args[0]<<" <portNumber>"<<endl;
+		cout<<"closing progam..."<<endl<<endl;
+		return -1;
 	}
-	unsigned short portNumber = atoi(args[1]);
+	
+	unsigned short portNumber;
+	try{
+		portNumber = Sanitizator::checkPortNumber(args[1]);
+	}
+	catch(const PortNumberException &pne)
+	{
+		cout<<pne.what()<<endl;
+		cout<<"closing progam..."<<endl<<endl;
+		return -1;
+	}
 
 	_server = new ServerTCP(portNumber);
 	_secureConnection = new SecureConnection(_server);
@@ -199,13 +214,13 @@ int main(int num_args, char *args[])
 			cout<<"[INFO] enstablishing secure connection with the client."<<endl;
 			_secureConnection->establishConnectionServer();
 		}
-		catch(const exception& e)
+		catch(const exception &e)
 		{
 			cout<<"[ERROR] secure connection with client failed:"<<endl;
         	cout<<"\t"<<"Reason: "<< e.what() << endl<<endl;
 			continue;
 		}
-		cout<<"[INFO] secure connection ensablished, "<<endl;
+		cout<<"[INFO] secure connection ensablished, ";
 		
 		if (_activeSocket >= 0)
 		{

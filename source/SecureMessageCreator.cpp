@@ -67,12 +67,20 @@ SecureMessageCreator::SecureMessageCreator()
 
 bool SecureMessageCreator::derivateKeys(unsigned char* inizializationKey, size_t ikSize){
   //cout<<"[DEBUG] generating session and HMAC keys..."<<endl;
+  if(_hmac_key != NULL){
+    //TODO explicit MEMZERO
+    free(_hmac_key);
+  }
+  if(_encrypt_key != NULL){
+    //TODO explicit MEMZERO
+    free(_encrypt_key);
+  }
   
   size_t halfSize = ikSize/2;
   unsigned char* firstPart = inizializationKey;
   unsigned char* secondPart = inizializationKey + halfSize;
 
-  unsigned char* tmpSha256 = (unsigned char*) malloc(SHA256_DIGEST_LENGTH);
+  unsigned char* tmpSha256 = new unsigned char[SHA256_DIGEST_LENGTH];
 
   if(!simpleHash256(firstPart,halfSize,tmpSha256)){
     cout<<"[DEBUG] error computing simple hash for generating hash key"<<endl;
@@ -80,7 +88,7 @@ bool SecureMessageCreator::derivateKeys(unsigned char* inizializationKey, size_t
     return false;
   }
 
-  _hmac_key = (unsigned char *)malloc(_hmacKeySize);
+  _hmac_key = new unsigned char[_hmacKeySize];
   memcpy(_hmac_key, tmpSha256, _hmacKeySize);
   
   //cout<<"[DEBUG] hash key:"<<endl;
@@ -91,7 +99,7 @@ bool SecureMessageCreator::derivateKeys(unsigned char* inizializationKey, size_t
     free(tmpSha256);
     return false;
   }
-  _encrypt_key = (unsigned char *)malloc(_encriptKeySize);
+  _encrypt_key = new unsigned char[_encriptKeySize];
   memcpy(_encrypt_key, tmpSha256, _encriptKeySize);
   //cout<<"[DEBUG] session key:"<<endl;
   //BIO_dump_fp(stdout,(char*)_encrypt_key,_encriptKeySize);
@@ -118,7 +126,7 @@ unsigned char *SecureMessageCreator::hash(unsigned char *inBuf, int inLen)
 {
   unsigned char *outBuf;
 
-  outBuf = (unsigned char *)malloc(_hashSize);
+  outBuf = new unsigned char[_hashSize];
 
   //Creazione del messaggio contesto digest
   HMAC_CTX *mdctx;
@@ -218,7 +226,7 @@ int SecureMessageCreator::EncryptAndSignMessage(unsigned char *plainText, int pl
 
   //cout<<"[HASH SIGN]"<<hashSign<<endl;
 
-  unsigned char *messageToEncrypt = (unsigned char *)malloc(plainTextLen + _hashSize);
+  unsigned char *messageToEncrypt = new unsigned char[plainTextLen + _hashSize];
 
   memcpy(messageToEncrypt, hashSign, _hashSize);
   memcpy(messageToEncrypt + _hashSize, plainText, plainTextLen);
@@ -226,7 +234,7 @@ int SecureMessageCreator::EncryptAndSignMessage(unsigned char *plainText, int pl
   //cout<<"[messageToEncrypt] "<<messageToEncrypt<<endl;
 
   int messageToEncryptLen = plainTextLen + _hashSize;
-  *secureText = (unsigned char *)malloc(messageToEncryptLen + 16); //consider eventually padding
+  *secureText = new unsigned char[messageToEncryptLen + 16]; //consider eventually padding
 
   int secureTextLen = encrypt(messageToEncrypt, messageToEncryptLen, NULL, *secureText);
 
@@ -242,7 +250,7 @@ bool SecureMessageCreator::DecryptAndCheckSign(unsigned char *secureText, int se
 {
   //cout<<"[SecureText]"<<secureText<<endl;
 
-  unsigned char *decryptedText = (unsigned char *)malloc(secureTextLen);
+  unsigned char *decryptedText = new unsigned char[secureTextLen];
   int decryptLen = decrypt(secureText, secureTextLen, NULL, decryptedText);
   //cout<<"[dectyptedText]"<<decryptedText<<endl;
 
@@ -259,7 +267,7 @@ bool SecureMessageCreator::DecryptAndCheckSign(unsigned char *secureText, int se
   //cout<<"[Message from msg]"<<msg<<endl;
 
   plainTextLen = decryptLen - _hashSize;
-  *plainText = (unsigned char *)malloc(plainTextLen);
+  *plainText = new unsigned char [plainTextLen];
   memcpy(*plainText, msg, plainTextLen);
 
   //cout<<"[Message form plainText]"<<msg<<endl;
@@ -304,7 +312,7 @@ unsigned int SecureMessageCreator::sign(unsigned char* msg, int msgSize, EVP_PKE
 {
 	unsigned int signatureLen;
 
-	signature = (unsigned char*) malloc(EVP_PKEY_size(privKey));
+	signature = new unsigned char[EVP_PKEY_size(privKey)];
 
 	EVP_MD_CTX* ctx = EVP_MD_CTX_new();
 	

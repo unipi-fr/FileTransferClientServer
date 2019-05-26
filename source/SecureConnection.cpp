@@ -15,14 +15,63 @@ SecureConnection::SecureConnection(IClientServerTCP *csTCP)
 
     _sMsgCreator = new SecureMessageCreator();
 
-    _certVal = new CertificationValidator();
+    string* names;
+    int numberOfNames = readNamesFromFile("certificateSettings/names.txt", names);
 
-    X509* caCert = _certVal->loadCertificateFromFile("CA_CybersecurityUniPi.pem");
+    _certVal = new CertificationValidator(names,numberOfNames);
+
+    X509* caCert = _certVal->loadCertificateFromFile("certificateSettings/CA_CybersecurityUniPi.pem");
     if(caCert == NULL){
         cout<<"[WARNING] not possible load CA certificate from file, all certificate cloud not be verify properly"<<endl;
     }else{
         _certVal->addCertificationAut(caCert);
     }
+}
+
+int SecureConnection::readNamesFromFile(const char* filename, string* &names){
+	ifstream is;
+	is.open(filename);
+    
+    if(!is.is_open()){
+        throw FileNotOpenException();
+    }
+    
+    int numberOfNames = 0;
+
+    is.seekg(0, ios::end);
+    int fileSize = is.tellg();
+    if (fileSize == 0)
+    {
+        names = new string[1];
+        names[0] = "";
+        numberOfNames = 1;
+
+        return -1;
+    }
+
+    is.seekg(0, ios::beg);
+
+    string grb;
+
+    while(!is.eof())
+    {
+	    getline(is, grb);
+        numberOfNames += 1;
+    }
+
+    names = new string[numberOfNames];
+
+    is.seekg(0, ios::beg);
+
+    int i = 0;
+    while(!is.eof())
+    {
+	    getline(is,names[i++]);
+    }
+
+	is.close();
+
+    return numberOfNames;
 }
 
 int SecureConnection::sendCertificate(X509* cert)
@@ -95,7 +144,7 @@ int SecureConnection::concatenate(unsigned char* src1, uint32_t len1, unsigned c
 {
     int destSize = len1 + len2 + 2*sizeof(uint32_t);
 
-    dest = (unsigned char*) malloc(destSize);
+    dest = new unsigned char[destSize];
 
     int currentPos = 0;
 
@@ -116,7 +165,7 @@ int SecureConnection::concatenate(unsigned char* src1, uint32_t len1, unsigned c
 
 void SecureConnection::computeSharedKeys(DH *dh_session, BIGNUM *bn)
 {   
-    unsigned char*  sharedkey = (unsigned char*) malloc(sizeof(unsigned char) *DH_size(dh_session));
+    unsigned char*  sharedkey = new unsigned char[sizeof(unsigned char) *DH_size(dh_session)];
 
     int sharedkey_size = DH_compute_key(sharedkey, bn, dh_session);
 
@@ -138,7 +187,7 @@ void SecureConnection::sendAutenticationAndFreshness(unsigned char* expectedMsg,
     free(signature);
 }
 
-bool SecureConnection::recvAutenticationAndVerify(unsigned char* expectedMsg,int expectedMsgLen)
+bool SecureConnection::recvAutenticationAndVerify(unsigned char* expectedMsg, int expectedMsgLen)
 {
     unsigned char *signature;
     int signatureLen;
@@ -150,16 +199,18 @@ bool SecureConnection::recvAutenticationAndVerify(unsigned char* expectedMsg,int
 
     certSize = rcvCertificate(cert);
 
-    //_certVal->verifyCertificate(cert);
-    
+    bool validCertificate = _certVal->verifyCertificate(cert);
+    if(!cert){
+        throw CertificateNotValidException();
+    }
+
     EVP_PKEY* pubKey = _certVal->extractPubKeyFromCertificate(cert);
 
-    //bool  signResult = _sMsgCreator->verify(expectedMsg, expectedMsgLen, signature, signatureLen, pubKey);
-    bool signResult = false;
+    bool  signResult = _sMsgCreator->verify(expectedMsg, expectedMsgLen, signature, signatureLen, pubKey);
+    //bool signResult = false;
     
     free(signature);
-    X509_free(cert);
-
+    
     return signResult;
 }
 
@@ -190,8 +241,6 @@ void SecureConnection::establishConnectionServer()
     YsLen = BN_bn2bin(bnYs, Ys); 
 
     _csTCP->sendMsg(Ys, YsLen);
-
-    BN_free(bnYs);
     
     unsigned char* msg;
     int msgLen;
@@ -201,8 +250,8 @@ void SecureConnection::establishConnectionServer()
     free(Yc);
     free(Ys);
     
-    X509* cert = _certVal->loadCertificateFromFile("my_certificate.pem");
-    EVP_PKEY* privKey = _sMsgCreator->ExtractPrivateKey("rsa_privkey.pem");
+    X509* cert = _certVal->loadCertificateFromFile("certificateSettings/my_certificate.pem");
+    EVP_PKEY* privKey = _sMsgCreator->ExtractPrivateKey("certificateSettings/rsa_privkey.pem");
     sendAutenticationAndFreshness(msg,msgLen,privKey,cert);
     EVP_PKEY_free(privKey);
 
@@ -211,7 +260,7 @@ void SecureConnection::establishConnectionServer()
     bool verifySing = recvAutenticationAndVerify(msg,msgLen);
     
     free(msg);
-    //DH_free(dh_session);
+    DH_free(dh_session);
     
     if(!verifySing)
     {
@@ -233,7 +282,7 @@ void SecureConnection::establishConnectionClient()
     
     YcLen = BN_bn2bin(bnYc, Yc);
 
-    BN_free(bnYc);
+    //BN_free(bnYc); se lasciata DH_free() da errore di segmentazione
 
     _csTCP->sendMsg((void*) Yc,YcLen);
 
@@ -265,16 +314,17 @@ void SecureConnection::establishConnectionClient()
         throw InvalidDigitalSignException(); 
     }
 
-    X509* cert = _certVal->loadCertificateFromFile("my_certificate.pem");
-    EVP_PKEY* privKey = _sMsgCreator->ExtractPrivateKey("rsa_privkey.pem");
+    X509* cert = _certVal->loadCertificateFromFile("certificateSettings/my_certificate.pem");
+    
+    EVP_PKEY* privKey = _sMsgCreator->ExtractPrivateKey("certificateSettings/rsa_privkey.pem");
     sendAutenticationAndFreshness(msg,msgLen,privKey,cert);
     //TODO: MEMSET CHIAVE PRIVATA
-    
+
     EVP_PKEY_free(privKey);
     X509_free(cert);
     free(msg);
     
-    //DH_free(dh_session);
+    DH_free(dh_session);
 } 
 
 int SecureConnection::sendFile(ifstream &file, bool stars)
@@ -286,7 +336,7 @@ int SecureConnection::sendFile(ifstream &file, bool stars)
 
     // obtain and send file size
     file.seekg(0, ios::end);
-    int fileSize = file.tellg();
+    long fileSize = file.tellg();
     if (fileSize == 0)
     {
         cout << "[INFO] attempt to send an Empty file" << endl;
@@ -313,10 +363,7 @@ int SecureConnection::sendFile(ifstream &file, bool stars)
         file.read(buffer, BUFF_SIZE);
         size_t readedBytes = file.gcount();
 
-
-        //sendSecureMsgWithAck(buffer, readedBytes);
         sendSecureMsg(buffer, readedBytes);
-        //usleep(500);
 
         fileSended += readedBytes;
         //cout << "[INFO] fileSended = " << fileSended << endl;
@@ -348,12 +395,16 @@ int SecureConnection::receiveFile(const char *filename, bool stars)
 
     lenght = recvSecureMsg((void **)&writer);
 
-    size_t fileSize;
+    long fileSize;
     stringstream ss;
     ss << writer;
     ss >> fileSize;
     free(writer);
 
+    if(fileSize < 0)
+    {
+        throw FileDoesNotExistsException();
+    }
     cout << "[INFO] fileSize=" << fileSize << endl;
 
     writeFile.open(filename, ios::binary);
@@ -368,7 +419,6 @@ int SecureConnection::receiveFile(const char *filename, bool stars)
     size_t writedBytes;
     for (writedBytes = 0; writedBytes < fileSize; writedBytes += lenght)
     {
-        //lenght = recvSecureMsgWithAck((void **)&writer);
         lenght = recvSecureMsg((void **)&writer);
 
         //cout << "[DEBUG] writedBites = " << writedBytes + lenght << endl;
@@ -416,7 +466,6 @@ int SecureConnection::reciveAndPrintBigMessage()
     size_t writedBytes;
     for (writedBytes = 0; writedBytes < fileSize; writedBytes += lenght)
     {
-        //lenght = recvSecureMsgWithAck((void **)&writer);
         lenght = recvSecureMsg((void **)&writer);
         
         cout << writer;
