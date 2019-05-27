@@ -1,4 +1,5 @@
 #include <exception>
+#include <string>
 
 #define MAX_PORT_NUMBER 65535
 #define MIN_PORT_NUMBER 1024

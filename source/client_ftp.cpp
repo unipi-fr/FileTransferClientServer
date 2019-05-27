@@ -1,6 +1,7 @@
 #include "SecureConnection.h"
 #include "ClientTCP.h"
 #include "Sanitizator.h"
+#include "Printer.h"
 #include <limits.h>
 #include <iostream>
 using namespace std;
@@ -214,7 +215,7 @@ int main(int num_args, char *args[])
 
     try
     {
-        cout << "[INFO] enstablishing secure connection with the server." << endl;
+        Printer::printInfo((char*)"Establishing secure connection eith the server");
         _secureConnection->establishConnectionClient();
     }
     catch (const std::exception &e)
@@ -225,7 +226,7 @@ int main(int num_args, char *args[])
              << endl;
         return -1;
     }
-    cout << "[INFO] secure connection ensablished." << endl;
+    Printer::printInfo((char*)"Secure connection established");
 
     string command;
     string argument;
@@ -238,7 +239,7 @@ int main(int num_args, char *args[])
     {
         for (;;)
         {
-            cout << "$> ";
+            printer::printPrompt("$>");
             cin >> command;
             //cout<<"[DEBUG|command]"<<command<<endl;
             if (command == "u" || command == "upload")
@@ -270,7 +271,7 @@ int main(int num_args, char *args[])
     catch (const DisconnectionException &de)
     {
         cerr << "Server disconnected." << endl;
-        cout << "Closing program...  Bye bye :)" << endl;
+        cout << "Closing program..." << endl;
     }
     catch (const HashNotValidException &hnve)
     {
@@ -281,7 +282,7 @@ int main(int num_args, char *args[])
     {
         cout << "[ERROR] An Unexpected exceptions occours:" << endl;
         cerr << e.what() << endl;
-        cout << "Closing program...  Bye bye :)" << endl;
+        cout << "Closing program..." << endl;
     }
 
     return 0;
