@@ -1,5 +1,5 @@
-COMMON_LIBS = SecureConnection.h SecureMessageCreator.h CertificationValidator.h Sanitizator.h socket_lib.h 
-COMMON_OBJ = SecureConnection.o SecureMessageCreator.o CertificationValidator.o Sanitizator.o socket_lib.o
+COMMON_LIBS = SecureConnection.h SecureMessageCreator.h CertificationValidator.h Sanitizator.h Printer.h socket_lib.h 
+COMMON_OBJ = SecureConnection.o SecureMessageCreator.o CertificationValidator.o Sanitizator.o Printer.o socket_lib.o
 CLIENT_LIBS = $(COMMON_LIBS) ClientTCP.h 
 CLIENT_OBJ = $(COMMON_OBJ) ClientTCP.o 
 SERVER_LIBS = $(COMMON_LIBS) ServerTCP.h 

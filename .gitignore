@@ -13,6 +13,7 @@ labs/
 *.txt
 server_ftp
 client_ftp
+!names.txt
 
 
 # Prerequisites

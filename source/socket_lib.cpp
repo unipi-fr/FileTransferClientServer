@@ -32,6 +32,7 @@ int recvTCP(int listenSocket, void** buffer){
     //ricevo la standardSize
     numberOfBytes = recv(listenSocket, (void*)&standardSize, sizeof(uint16_t), MSG_WAITALL);
     if(numberOfBytes == 0){
+        //std::cout<<"oioi ora moio"<<std::endl;
         throw DisconnectionException();
     }
     if(numberOfBytes == -1){

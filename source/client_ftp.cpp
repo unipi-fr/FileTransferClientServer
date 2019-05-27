@@ -1,7 +1,10 @@
 #include "SecureConnection.h"
 #include "ClientTCP.h"
+#include "Sanitizator.h"
+#include "Printer.h"
 #include <limits.h>
 #include <iostream>
+#include <sstream>
 using namespace std;
 
 SecureConnection *_secureConnection;
@@ -10,39 +13,50 @@ ClientTCP *_client;
 void sendUploadCommand(string file)
 {
     string msg = "u " + file;
-    _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length()+1);
+    _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length() + 1);
 }
 
 void sendRetriveListCommand()
 {
     string msg = "rl";
-    _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length()+1);
+    _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length() + 1);
 }
 
 void sendRetriveFileCommand(string file)
 {
     string msg = "rf " + file;
-    _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length()+1);
+    _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length() + 1);
 }
 
-void uploadCommand(string argument)
+void uploadCommand(string filename) //changed argument with filename
 {
     ifstream readFile;
 
-    readFile.open(argument.c_str(), ios::in | ios::binary | ios::ate);
+    try
+    {
+        Sanitizator::checkFilename(filename.c_str());
+    }
+    catch(const exception& e)
+    {
+        Printer::printError(e.what());
+        return;
+    }
+    
+
+    readFile.open(filename.c_str(), ios::in | ios::binary | ios::ate);
     if (!readFile.is_open())
     {
-        cerr << "[ERORR] file doesn't exists" << endl;
+        Printer::printError("file doesn't exists");
         return;
     }
 
     try
     {
-        sendUploadCommand(argument);
+        sendUploadCommand(filename);
     }
     catch (const NetworkException &e)
     {
-        cerr << "[ERROR] A network error has occoured sending the command" << endl;
+        Printer::printError("A network error has occoured sending the command");
         readFile.close();
         return;
     }
@@ -53,7 +67,7 @@ void uploadCommand(string argument)
     }
     catch (const NetworkException &ne)
     {
-        cerr << "[ERROR] A network error has occoured sending the file" << endl;
+        Printer::printError("A network error has occoured sending the file");
     }
 
     readFile.close();
@@ -67,17 +81,17 @@ void retriveListCommand()
     }
     catch (const NetworkException &e)
     {
-        cerr << "[ERROR] A network error has occoured sending the command" << endl;
+        Printer::printError("A network error has occoured sending the command");
         return;
     }
-    
+
     try
     {
         _secureConnection->reciveAndPrintBigMessage();
     }
     catch (const NetworkException &ne)
     {
-        cerr << "[ERROR] A network error has occoured downloading the message" << endl;
+        Printer::printError("A network error has occoured downloading the message");
     }
 }
 
@@ -85,16 +99,26 @@ void retriveFileCommand(string filename)
 {
     try
     {
+        Sanitizator::checkFilename(filename.c_str());
+    }
+    catch(const exception& e)
+    {
+        Printer::printError(e.what());
+        return;
+    }
+
+    try
+    {
         sendRetriveFileCommand(filename);
     }
     catch (const NetworkException &e)
     {
-        cerr << "[ERROR] A network error has occoured sending the command" << endl;
+        Printer::printError("A network error has occoured sending the command");
         return;
     }
-    
+
     system("mkdir -p tmp");
-	string tmpFile  = "tmp/tmp.txt";
+    string tmpFile = "tmp/tmp.txt";
     string cmd;
 
     try
@@ -108,33 +132,33 @@ void retriveFileCommand(string filename)
     }
     catch (const NetworkException &ne)
     {
-        cerr << "[ERROR] A network error has occoured downloading the file" << endl;
+        Printer::printError("A network error has occoured downloading the file");
         system("rm -r tmp");
         return;
     }
     catch (const HashNotValidException &hnve)
-    {     
+    {
         system("rm -r tmp");
         throw hnve;
     }
     catch (const FileDoesNotExistsException &fdnee)
     {
-        cout<<fdnee.what()<<endl;
+        Printer::printError(fdnee.what());
         system("rm -r tmp");
         return;
     }
 
-    cmd = "mv " + tmpFile+ " " + filename;
-	system(cmd.c_str());
+    cmd = "mv " + tmpFile + " " + filename;
+    system(cmd.c_str());
     system("rm -r tmp");
 }
 
 void helpCommand()
 {
-    cout << "  - [u | upload] <filename>: upload <filename> to the server" << endl;
-    cout << "  - [rl | retrive-list]: retrive the list of files available from the server." << endl;
-    cout << "  - [rf | retrive-file] <filename>: per ricevere un file dal server digitare" << endl;
-    cout << "  - [quit | exit | q]: for closing the program" << endl;
+    cout << "[u | upload] <filename>: upload <filename> to the server" << endl;
+    cout << "[rl | retrive-list]: retrive the list of files available from the server." << endl;
+    cout << "[rf | retrive-file] <filename>: per ricevere un file dal server digitare" << endl;
+    cout << "[quit | exit | q]: for closing the program" << endl;
     cout << " ------------------------------------------------------------" << endl
          << endl;
 }
@@ -142,12 +166,12 @@ void helpCommand()
 void quitCommand()
 {
     _client->closeConnection();
-    cout << "Closing program... Bye bye :)" << endl
-         << endl;
+    Printer::printNormal("Closing program.. \n\n");
 }
 
 int main(int num_args, char *args[])
 {
+    cout<<endl;
     // 0 comando
     // 1 parametro indirizzo ip;
     // 2 parametro numero di porta;
@@ -156,41 +180,50 @@ int main(int num_args, char *args[])
     /*LETTURA PARAMETRI*/
     if (num_args != 3)
     {
-        cerr << "[ERROR] Number of parameters are not valid." << endl;
-        cout << "Usage: " << args[0] << " <ipServer> <SERVER_PORT_#>" << endl;
-        cout << "Closing program..." << endl
-             << endl;
+        Printer::printError("Number of parameters are not valid.");
+        Printer::printNormal(string("Usage: " + string(args[0]) + " <ipServer> <SERVER_PORT_#>").c_str());
+        Printer::printNormal("Closing program...\n\n");
         return -1;
     }
-
-    string ipServer = args[1];
-    unsigned short portNumber = atoi(args[2]);
+    string ipServer;
+    unsigned short portNumber;
+    try
+    {
+        ipServer = Sanitizator::checkIpAddress(args[1]);
+        portNumber = Sanitizator::checkPortNumber(args[2]);
+    }
+    catch(const exception& e)
+    {
+        Printer::printError(e.what());
+        return -1;
+    }
     // end parameter read
 
     _client = new ClientTCP(ipServer.c_str(), portNumber);
 
     if (!_client->serverTCPconnection())
     {
-        cout << endl
-             << "[ERROR] connect(): Failed connect to the server." << endl;
-        exit(-5);
-    }
-    cout << "Successfull connected to the server " << ipServer << " (PORT: " << portNumber << ")" << endl;
-
-    _secureConnection = new SecureConnection(_client);
-    
-    try
-    {
-        cout<<"[INFO] enstablishing secure connection with the server."<<endl;
-        _secureConnection->establishConnectionClient();
-    }
-    catch(const std::exception& e)
-    {
-        cout<<"[ERROR] secure connection with server failed:"<<endl;
-        cout<<"\t"<<"Reason: "<< e.what() << endl<<endl;
+        Printer::printError("connect(): Failed connect to the server.");
         return -1;
     }
-    cout<<"[INFO] secure connection ensablished."<<endl;
+    
+    stringstream mess;
+    mess << "Successfull connected to the server " << ipServer  << " (PORT: " << portNumber << ")";
+    Printer::printMsg(mess.str().c_str())  ;
+
+    _secureConnection = new SecureConnection(_client);
+
+    try
+    {
+        Printer::printInfo((char*)"Establishing secure connection with the server");
+        _secureConnection->establishConnectionClient();
+    }
+    catch (const std::exception &e)
+    {
+        Printer::printErrorWithReason("Secure connection with server failed:",e.what());
+        return -1;
+    }
+    Printer::printMsg("Secure connection established\n");
 
     string command;
     string argument;
@@ -203,9 +236,10 @@ int main(int num_args, char *args[])
     {
         for (;;)
         {
-            cout << "$> ";
+            Printer::printPrompt("$>");
             cin >> command;
-            //cout<<"[DEBUG|command]"<<command<<endl;
+            
+            cout<<endl;
             if (command == "u" || command == "upload")
             {
                 cin >> argument;
@@ -234,18 +268,18 @@ int main(int num_args, char *args[])
     }
     catch (const DisconnectionException &de)
     {
-        cerr << "Server disconnected." << endl;
-        cout << "Closing program...  Bye bye :)" << endl;
+        Printer::printError("Server disconnected.");
+        
     }
-    catch(const HashNotValidException &hnve){
-        cerr << "[ERROR] Failed to download a part of the message (Hash was not valid)" << endl;
+    catch (const HashNotValidException &hnve)
+    {
+        Printer::printError("Failed to download a part of the message (Hash was not valid)");
         _client->closeConnection();
     }
     catch (const exception &e)
     {
-        cout << "[ERROR] An Unexpected exceptions occours:" << endl;
-        cerr << e.what() << endl;
-        cout << "Closing program...  Bye bye :)" << endl;
+        Printer::printErrorWithReason("An Unexpected exceptions occours:",e.what());
+        Printer::printNormal("Closing program...\n\n");
     }
 
     return 0;

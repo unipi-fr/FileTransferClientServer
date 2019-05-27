@@ -1,5 +1,5 @@
 #include "ServerTCP.h"
-#include <iostream>
+#include "Printer.h"
 #include <time.h>   //per la select()
 #include <unistd.h> //close(socket)
 
@@ -7,7 +7,6 @@
 #include <sys/types.h> //socket (costantie valori)
 #include <sys/socket.h>	//socket (funzioni)
 #include <arpa/inet.h>	//standard per l'ordine dei byte
-using namespace std;
 
 void ServerTCP::localAddrStructInit(void)
 {
@@ -24,13 +23,14 @@ void ServerTCP::listenerSocketInit()
     ret = bind(_listenerSocket, (struct sockaddr *)&_localAddrStruct, sizeof(_localAddrStruct));
     if (ret < 0)
     {
-        cout << "[ERROR] not possible binding the address." << endl;
+        Printer::printError("Not possible binding the address.");
         exit(-1);
     }
+
     ret = listen(_listenerSocket, 1);
     if (ret < 0)
     {
-        cout << "[ERROR] not possible switching in listening mode." << endl;
+        Printer::printError("Not possible switching in listening mode.");
         exit(-1);
     }
 }
@@ -52,7 +52,6 @@ ServerTCP::ServerTCP(unsigned short portNumber)
     _comunicationSocket = -1;
     localAddrStructInit();
     listenerSocketInit();
-    cout << "[INFO]Server successfull listening on port " << _portNumber << endl;
 }
 
 int ServerTCP::acceptNewConnecction()
@@ -63,7 +62,7 @@ int ServerTCP::acceptNewConnecction()
     _comunicationSocket = accept(_listenerSocket, (struct sockaddr *)&_clientAddrStruct, &len);
     if (_comunicationSocket < 0)
     {
-        cout << "[ERROR] not possible accept new connection." << endl;
+        Printer::printError("Not possible accept new connection.");
     }
     
     return _comunicationSocket;
@@ -73,7 +72,7 @@ int ServerTCP::recvMsg(void **buffer)
 {
     if (_comunicationSocket < 0)
     {
-        cout << "[WARNING] recvMsg called without a client connected." << endl;
+        Printer::printWaring("recvMsg called without a client connected.");
     }
     int numberOfBytes = recvTCP(_comunicationSocket, buffer);
 
@@ -84,7 +83,7 @@ void ServerTCP::sendMsg(void *buffer, size_t bufferSize)
 {
     if (_comunicationSocket < 0)
     {
-        cout << "[WARNING] sendMsg called without a client connected" << endl;
+        Printer::printWaring("SendMsg called without a client connected");
     }
     sendTCP(_comunicationSocket, buffer, bufferSize);
 }
