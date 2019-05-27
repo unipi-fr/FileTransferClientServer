@@ -183,9 +183,10 @@ void manageConnection()
 		disconnectClient();
 		return;
 	}
+	
 	commandStream >> command;
 	stringstream mess;
-	mess<<"[COMMAND] '"<<command<<"'";
+	mess<<"\n[COMMAND] '"<<command<<"'";
 	Printer::printMsg(mess.str().c_str());
 
 	if (command == "u")
@@ -206,15 +207,14 @@ void manageConnection()
 
 int main(int num_args, char *args[])
 {
-	cout<<endl;
+	Printer::printNormal("\n");
+	Printer::printMsg("--- WELCOME ON SECURE FILE TRANSFER SERVER ---");
 	// check parameter
 	if (num_args != 2)
 	{
-		cout << endl
-			 << "[ERRORE] Number of parameter not valid." << endl;
-		cout << "Usage: " << args[0] << " <portNumber>" << endl;
-		cout << "closing progam..." << endl
-			 << endl;
+		Printer::printError("Number of parameters are not valid.");
+        Printer::printNormal(string("Usage: " + string(args[0]) + " <PORT_NUMBER>").c_str());
+        Printer::printNormal("Closing program...\n\n");
 		return -1;
 	}
 
@@ -236,7 +236,6 @@ int main(int num_args, char *args[])
 
 	stringstream mess;
 	mess << "Succesfull listening on port " << portNumber;
-
 	Printer::printMsg(mess.str().c_str());
 
 	_secureConnection = new SecureConnection(_server);

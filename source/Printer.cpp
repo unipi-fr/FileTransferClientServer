@@ -87,4 +87,8 @@ void Printer::printNormal(const char* msg)
     cout<<msg;
 }
 
+void Printer::printTag(const char* TAG, const char* msg, const char* color)
+{
+    cout<<"["<<color<<TAG<<RESET<<"] "<<msg<<endl;
+}
 
