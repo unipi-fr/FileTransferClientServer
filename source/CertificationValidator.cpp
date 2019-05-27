@@ -20,13 +20,10 @@ CertificationValidator::CertificationValidator(string* names, int dim)
 
 bool CertificationValidator::verifyName(string nameToVerify)
 {
-  
   for(int i = 0; i<_numberOfNames ; i++)
   {
     if(_names[i] == nameToVerify)
-    {
       return true;
-    }
   }
 
   return false;
@@ -47,18 +44,9 @@ bool CertificationValidator::verifyCertificate(X509* cert)
   if(ret != 1)
     return false;
 
+  string str = getCertName(cert);
   X509_STORE_CTX_free(ctx);
-
-  X509_NAME* subjectName;
-
-  subjectName = X509_get_subject_name(cert);
-  char* substr = X509_NAME_oneline(subjectName, NULL, 0);
-
-  string str = string(substr);
-
-  free(substr);
-  X509_NAME_free(subjectName);
-
+  
   return verifyName(str);
 }
 
@@ -91,4 +79,17 @@ EVP_PKEY* CertificationValidator::extractPubKeyFromCertificate(X509* cert)
 {
   EVP_PKEY* pubKey = X509_get_pubkey(cert);
   return pubKey;
+}
+
+string CertificationValidator::getCertName(X509* cert)
+{
+  string res;
+  X509_NAME* subjectName;
+
+  subjectName = X509_get_subject_name(cert);
+  char* substr = X509_NAME_oneline(subjectName, NULL, 0);
+
+  res = string(substr);
+
+  return res;
 }

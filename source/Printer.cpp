@@ -1,35 +1,90 @@
 #include "Printer.h"
 #include <iostream>
+#include <sys/ioctl.h>
+#include <stdio.h>
 
 using namespace std;
 
-void Printer::printInfo(char* info)
+void Printer::printInfo(const char* info)
 {
     cout<<"["<<CYAN<<"INFO"<<RESET<<"] "<<info<<endl;
 }
 
-void Printer::printWaring(char* warning)
+void Printer::printWaring(const char* warning)
 {
-    cout<<"["<<YELLOW<<"INFO"<<RESET<<"] "<<warning<<endl;
+    cout<<endl;
+    cout<<"["<<YELLOW<<"WARNING"<<RESET<<"] "<<warning<<endl<<endl;
 }
 
-void Printer::printError(char* error)
+void Printer::printError(const char* error)
 {
-    cerr<<"["<<RED<<"INFO"<<RESET<<"] "<<error<<endl;
+    cerr<<endl;
+    cerr<<"["<<RED<<"ERROR"<<RESET<<"] "<<error<<endl<<endl;
 }
 
-void Printer::printErrorWithReason(char* error, char* reason)
+void Printer::printErrorWithReason(const char* error, const char* reason)
 {
-    cerr<<"["<<RED<<"INFO"<<RESET<<"] "<<error<<endl;
-    cerr<<"\t"<<RED<<"Reason: "<<RESET<<reason<<endl;
+    cerr<<endl;
+    cerr<<"["<<RED<<"ERROR"<<RESET<<"] "<<error<<endl;
+    cerr<<"\t"<<RED<<"Reason: "<<RESET<<reason<<endl<<endl;
 }
 
-void Printer::printMsg(char* msg)
+void Printer::printMsg(const char* msg)
 {
-    cout<<"["<<GREEN<<"INFO"<<RESET<<"] "<<msg<<endl;
+    cout<<GREEN<<msg<<RESET<<endl;
 }
 
-void Printer::printPrompt(char* prompt)
+void Printer::printPrompt(const char* prompt)
 {
     cout<<MAGENTA<<prompt<<RESET<<" ";
 }
+
+void Printer::printLoadBar(double current, double end, bool error)
+{
+    if(current >= end)
+        cout<<GREEN;
+    else
+        cout<<YELLOW;
+
+    if(error)
+        cout<<RED;
+
+    cout<<"[";
+
+    struct winsize w;
+    ioctl(0, TIOCGWINSZ, &w);
+
+    double actualPercentage = current/end;
+    int charToPrint = w.ws_col - 7;
+
+    double stopPrintingHash = actualPercentage * charToPrint;
+
+    size_t partReaded = 0;
+    
+    for (int i = 0; i < charToPrint; i++)
+    {
+        if(i < stopPrintingHash)
+            cout << "#";
+        else
+            cout<<" ";
+    }
+
+    cout<<"] "<<(long)(actualPercentage*100)<<"%"<<RESET;
+
+    if(current >= end)
+        cout<<endl<<endl;
+    else
+        cout<<"\r";
+
+    if(error)
+        cout<<endl;
+
+    cout<<flush;
+}
+
+void Printer::printNormal(const char* msg)
+{
+    cout<<msg;
+}
+
+

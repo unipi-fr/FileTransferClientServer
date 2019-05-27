@@ -31,12 +31,12 @@ class IpAddressException : public SanitizatorException
     }
 };
 
-class DangerousNameException : public SanitizatorException
+class DangerousFilenameException : public SanitizatorException
 {
     public:
     const char *what() const throw()
     {
-        return "Name not Valid";
+        return "filename not Valid";
     }
 };
 
@@ -44,10 +44,10 @@ class Sanitizator{
     private:
         static const char* numbersValidator;
         static const char* ipAddressValidator;
-        static const char* osCommandValidator;
+        static const char* filenameValidator;
     
     public:
-        static unsigned short checkPortNumber(char* param);
-        static string checkIpAddress(char* param);
-        static void checkOsCommand(char* param);
+        static unsigned short checkPortNumber(const char* param);
+        static std::string checkIpAddress(std::string param);
+        static void checkFilename(const char* param);
 };

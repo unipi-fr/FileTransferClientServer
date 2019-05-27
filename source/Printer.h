@@ -10,10 +10,12 @@
 class Printer 
 {
     public:
-        static void printInfo(char* info);
-        static void printWaring(char* warning);
-        static void printError(char* error);
-        static void printErrorWithReason(char* error, char* reason);
-        static void printMsg(char* msg);
-        static void printPrompt(char* prompt);
+        static void printInfo(const char* info);
+        static void printWaring(const char* warning);
+        static void printError(const char* error);
+        static void printErrorWithReason(const char* error, const char* reason);
+        static void printMsg(const char* msg);
+        static void printPrompt(const char* prompt);
+        static void printLoadBar(double current, double end, bool error);
+        static void printNormal(const char* msg);
 };

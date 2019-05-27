@@ -1,7 +1,7 @@
 #ifndef ICLIENTSERVER
 #define ICLIENTSERVER
 
-#include <iostream>
+#include <stdlib.h>
 
 class IClientServerTCP
 {

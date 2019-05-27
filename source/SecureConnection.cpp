@@ -1,12 +1,12 @@
 #include "SecureConnection.h"
+#include "Printer.h"
+#include "socket_lib.h"
 #include <string>
 #include <sstream>
 #include <unistd.h>
 #include <string.h>
 #include <openssl/rand.h>
-//#include <stdlib.h> // for random nonce
-//#include <time.h>   // for random nonce
-#include <iostream>
+
 using namespace std;
 
 SecureConnection::SecureConnection(IClientServerTCP *csTCP)
@@ -22,7 +22,7 @@ SecureConnection::SecureConnection(IClientServerTCP *csTCP)
 
     X509* caCert = _certVal->loadCertificateFromFile("certificateSettings/CA_CybersecurityUniPi.pem");
     if(caCert == NULL){
-        cout<<"[WARNING] not possible load CA certificate from file, all certificate cloud not be verify properly"<<endl;
+        Printer::printWaring("not possible load CA certificate from file, all certificate cloud not be verify properly");
     }else{
         _certVal->addCertificationAut(caCert);
     }
@@ -81,7 +81,7 @@ int SecureConnection::sendCertificate(X509* cert)
     int size = i2d_X509(cert, &buf);
     if(size < 0)
     {
-        cerr << "[ERROR] i2d_X509() error"<<endl;
+        Printer::printError("i2d_X509()");
         return -1;
     }
 
@@ -102,7 +102,7 @@ int SecureConnection::rcvCertificate(X509* &cert)
     cert = d2i_X509(NULL, (const unsigned char**)&buf, size);
     if(!cert)
     {
-        cerr << "[ERROR] d2i_X509() error"<<endl;
+        Printer::printError("d2i_X509()");
         return -1;
     }
 
@@ -112,7 +112,6 @@ int SecureConnection::rcvCertificate(X509* &cert)
 void SecureConnection::sendSecureMsg(void *buffer, size_t bufferSize)
 {
     unsigned char *secureMessage;
-    //cout<<"[DEBUGsendMSG]"<<(char*)buffer<<endl;
     size_t msgSize = _sMsgCreator->EncryptAndSignMessage((unsigned char *)buffer, bufferSize, &secureMessage);
     _csTCP->sendMsg(secureMessage, msgSize);
     free(secureMessage);
@@ -125,17 +124,14 @@ int SecureConnection::recvSecureMsg(void **plainText)
     numberOfBytes = _csTCP->recvMsg((void **)&encryptedText);
 
     int plainTextSize;
-    //cout<<"[secureplainText]"<<encryptedText<<endl;
     bool check = _sMsgCreator->DecryptAndCheckSign(encryptedText, numberOfBytes, (unsigned char **)plainText, plainTextSize);
 
     free(encryptedText);
 
-    //cout<<"[plainText]"<<(*plainText)<<endl;
     if (!check)
     {
         throw HashNotValidException();
     }
-    //cout<<"[INFO] hash OK!"<<endl;
 
     return plainTextSize;
 }
@@ -199,8 +195,10 @@ bool SecureConnection::recvAutenticationAndVerify(unsigned char* expectedMsg, in
 
     certSize = rcvCertificate(cert);
 
+    string mess = "Recived certificate: "+_certVal->getCertName(cert);
+    Printer::printInfo(mess.c_str());
     bool validCertificate = _certVal->verifyCertificate(cert);
-    if(!cert){
+    if(!validCertificate){
         throw CertificateNotValidException();
     }
 
@@ -266,6 +264,8 @@ void SecureConnection::establishConnectionServer()
     {
         throw InvalidDigitalSignException();
     }
+
+    sendSecureMsg((void*)"ok",3); // for Atu verification
 } 
 
 void SecureConnection::establishConnectionClient()
@@ -325,6 +325,12 @@ void SecureConnection::establishConnectionClient()
     free(msg);
     
     DH_free(dh_session);
+
+    // for Atu verification //////////////////////////////////////////
+    unsigned char* checkConnectionEnstablished;
+    int checkSize = recvSecureMsg((void**) &checkConnectionEnstablished);
+    free(checkConnectionEnstablished);
+    //////////////////////////////////////////////////////////////////
 } 
 
 int SecureConnection::sendFile(ifstream &file, bool stars)
@@ -339,7 +345,7 @@ int SecureConnection::sendFile(ifstream &file, bool stars)
     long fileSize = file.tellg();
     if (fileSize == 0)
     {
-        cout << "[INFO] attempt to send an Empty file" << endl;
+        Printer::printInfo("Attempt to send and empy file");
     }
     string strFileSize = to_string(fileSize);
     sendSecureMsg((void *)strFileSize.c_str(), strFileSize.length());
@@ -347,11 +353,11 @@ int SecureConnection::sendFile(ifstream &file, bool stars)
     file.seekg(0, ios::beg);
     char buffer[BUFF_SIZE];
 
-    size_t whenPrintCharacter = fileSize / 80;
-    size_t partReaded = 0;
     size_t fileSended = 0;
 
-    cout << "[INFO] fileSize=" << fileSize << endl;
+    string mess = "fileSize = " + strFileSize;
+    Printer::printInfo(mess.c_str());
+
     if (fileSize == 0)
     {
         return fileSended;
@@ -366,22 +372,10 @@ int SecureConnection::sendFile(ifstream &file, bool stars)
         sendSecureMsg(buffer, readedBytes);
 
         fileSended += readedBytes;
-        //cout << "[INFO] fileSended = " << fileSended << endl;
-        //the following code prints * characters
         if (stars)
-        {
-            partReaded += readedBytes;
-            
-            if (whenPrintCharacter > 0 && partReaded >= whenPrintCharacter)
-            {
-                for (int i = 0; i < partReaded / whenPrintCharacter; i++)
-                    cout << "*" << flush;
-                partReaded = partReaded % whenPrintCharacter;
-            }
-        }
+            Printer::printLoadBar(fileSended, fileSize,false);
     }
-    if (stars)
-        cout << endl;
+    
 
     return fileSended;
 }
@@ -399,13 +393,17 @@ int SecureConnection::receiveFile(const char *filename, bool stars)
     stringstream ss;
     ss << writer;
     ss >> fileSize;
+
     free(writer);
 
     if(fileSize < 0)
     {
         throw FileDoesNotExistsException();
     }
-    cout << "[INFO] fileSize=" << fileSize << endl;
+
+    stringstream mess;
+    mess << "fileSize = " << fileSize;
+    Printer::printInfo(mess.str().c_str());
 
     writeFile.open(filename, ios::binary);
     if (!writeFile.is_open())
@@ -419,27 +417,15 @@ int SecureConnection::receiveFile(const char *filename, bool stars)
     size_t writedBytes;
     for (writedBytes = 0; writedBytes < fileSize; writedBytes += lenght)
     {
-        lenght = recvSecureMsg((void **)&writer);
+        lenght = recvSecureMsg((void **)&writer);        
 
-        //cout << "[DEBUG] writedBites = " << writedBytes + lenght << endl;
         //the following code prints * characters
         if (stars)
-        {
-            partReaded += lenght;
-            
-            if (whenPrintCharacter > 0 && partReaded >= whenPrintCharacter)
-            {
-                for (int i = 0; i < partReaded / whenPrintCharacter; i++)
-                    cout << "*" << flush;
-                partReaded = partReaded % whenPrintCharacter;
-            }
-        }
+            Printer::printLoadBar(writedBytes + lenght, fileSize,false);
 
         writeFile.write(writer, lenght);
         free(writer);
     }
-    if (stars)
-        cout << endl;
 
     writeFile.close();
 
@@ -460,20 +446,16 @@ int SecureConnection::reciveAndPrintBigMessage()
     ss >> fileSize;
     free(writer);
     
-    //cout << "[INFO] fileSize = "<<fileSize << endl;
-    
-
     size_t writedBytes;
     for (writedBytes = 0; writedBytes < fileSize; writedBytes += lenght)
     {
         lenght = recvSecureMsg((void **)&writer);
         
-        cout << writer;
+        Printer::printNormal(writer);
         free(writer);
     }
-    cout << endl;
-
-    //cout << "[DEBUG] writedBites = " << writedBytes << endl;
+    
+    Printer::printNormal("\n");
     
     return writedBytes;
 }

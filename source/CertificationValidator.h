@@ -37,6 +37,7 @@ private:
 public:
     CertificationValidator(std::string* names, int dim);
 
+    std::string getCertName(X509* cert);
     bool verifyCertificate(X509* cert);
     X509* loadCertificateFromFile(const char* filename);
     bool addCertificationAut(X509* cert);

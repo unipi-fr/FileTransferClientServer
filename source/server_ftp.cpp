@@ -23,7 +23,7 @@ void uploadCommand(string fileName)
 {
 	try
 	{
-		Sanitizator::checkOsCommand(filename);
+		Sanitizator::checkFilename(fileName.c_str());
 	}
 	catch (const exception &e)
 	{
@@ -104,7 +104,7 @@ void retriveFileCommand(string fileName)
 {
 	try
 	{
-		Sanitizator::checkOsCommand(filename);
+		Sanitizator::checkFilename(fileName.c_str());
 	}
 	catch (const exception &e)
 	{
@@ -129,7 +129,7 @@ void retriveFileCommand(string fileName)
 
 	try
 	{
-		_secureConnection->sendFile(readFile, false);
+		_secureConnection->sendFile(readFile, true);
 	}
 	catch (const NetworkException &ne)
 	{
@@ -166,14 +166,14 @@ void manageConnection()
 	string command;
 	string filename;
 
-	Printer::printInfo((char*)"Ready to receive a command");
+	Printer::printInfo("Ready to receive a command");
 	try
 	{
 		commandStream = receiveCommad();
 	}
 	catch (const NetworkException &ne)
 	{
-		Printer::printError((char*)"A network error has occured reeceiving the command");
+		Printer::printError("A network error has occured reeceiving the command");
 		disconnectClient();
 		return;
 	}
@@ -184,7 +184,9 @@ void manageConnection()
 		return;
 	}
 	commandStream >> command;
-	Printer::printMsg((char*)"[COMMAND] '" + command + "'");
+	stringstream mess;
+	mess<<"[COMMAND] '"<<command<<"'";
+	Printer::printMsg(mess.str().c_str());
 
 	if (command == "u")
 	{
@@ -204,6 +206,7 @@ void manageConnection()
 
 int main(int num_args, char *args[])
 {
+	cout<<endl;
 	// check parameter
 	if (num_args != 2)
 	{
@@ -230,29 +233,40 @@ int main(int num_args, char *args[])
 	// end check param
 
 	_server = new ServerTCP(portNumber);
+
+	stringstream mess;
+	mess << "Succesfull listening on port " << portNumber;
+
+	Printer::printMsg(mess.str().c_str());
+
 	_secureConnection = new SecureConnection(_server);
 
 	_activeSocket = -1;
 	for (;;)
 	{
-		Printer::printInfo((char*)"Waiting for a connection");
+		Printer::printInfo("Waiting for a connection");
 		_activeSocket = _server->acceptNewConnecction();
 
 		try
 		{
-			Printer::printInfo((char*)"enstablishing secure connection with the client.");
+			Printer::printInfo("Enstablishing secure connection with the client.");
 			_secureConnection->establishConnectionServer();
+		}
+		catch(const CertificateNotValidException &cnve){
+			Printer::printErrorWithReason("Failed to establish a secure connection", cnve.what());
+			_server->forceClientDisconnection();
+			continue;
 		}
 		catch (const exception &e)
 		{
-			Printer::printErrorWithReason((char*)"Failed to establish a secure connection", (char*)"Hash not valid");
+			Printer::printErrorWithReason("Failed to establish a secure connection", e.what());
 			continue;
 		}
-		Printer::printInfo((char*)"Secure connection established");
+		Printer::printMsg("Secure connection established");
 
 		if (_activeSocket >= 0)
 		{
-			Printer::printInfo((char*)"New client connected");
+			Printer::printInfo("New client connected");
 		}
 
 		while (_activeSocket >= 0)
@@ -264,11 +278,11 @@ int main(int num_args, char *args[])
 			catch (const DisconnectionException &de)
 			{
 				_activeSocket = -1;
-				Printer::printInfo((char*)"Client Disconnected");
+				Printer::printWaring("Client Disconnected");
 			}
 			catch (const exception &e)
 			{
-				Printer::printError((char*)"A unexpected error has occured");
+				Printer::printError("A unexpected error has occured");
 				Printer::printError(e.what());
 
 				disconnectClient();
