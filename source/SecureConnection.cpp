@@ -363,6 +363,13 @@ int SecureConnection::sendFile(ifstream &file, bool stars)
         return fileSended;
     }
 
+    //if(fileSize > 4294967296)
+    //{
+    //    string strFileSize = to_string((long)-2);
+    //	  _secureConnection->sendSecureMsg((void *)strFileSize.c_str(), strFileSize.length() + 1);
+    //    throw FileTooMuchBigException();
+    //}
+
     while (!file.eof() && fileSended < fileSize)
     {
         memset(buffer, 0, BUFF_SIZE);
@@ -396,10 +403,15 @@ int SecureConnection::receiveFile(const char *filename, bool stars)
 
     free(writer);
 
-    if(fileSize < 0)
+    if(fileSize == -1)
     {
         throw FileDoesNotExistsException();
     }
+
+    //if(fileSize == -2)
+    //{
+    //    throw FileTooMuchBigException();
+    //}
 
     stringstream mess;
     mess << "fileSize = " << fileSize;

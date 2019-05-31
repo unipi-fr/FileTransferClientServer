@@ -122,7 +122,7 @@ void retriveFileCommand(string fileName)
 		Printer::printWaring((char*)"not possible open the file or the file demanded doesn't exist");
 
 		string strFileSize = to_string((long)-1);
-		_secureConnection->sendSecureMsg((void *)strFileSize.c_str(), strFileSize.length());
+		_secureConnection->sendSecureMsg((void *)strFileSize.c_str(), strFileSize.length() + 1);
 
 		return;
 	}
@@ -141,6 +141,10 @@ void retriveFileCommand(string fileName)
 		Printer::printErrorWithReason((char*)"Failed to upload a part of the file", (char*)"Hash not valid");
 		disconnectClient();
 	}
+	//catch (const FileTooMuchBigException &ftmbe)
+	//{
+	//	  Printer::printError(ftmbe.what());
+	//}
 
 	readFile.close();
 }

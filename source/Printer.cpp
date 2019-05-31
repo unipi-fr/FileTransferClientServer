@@ -12,19 +12,16 @@ void Printer::printInfo(const char* info)
 
 void Printer::printWaring(const char* warning)
 {
-    cout<<endl;
     cout<<"["<<YELLOW<<"WARNING"<<RESET<<"] "<<warning<<endl<<endl;
 }
 
 void Printer::printError(const char* error)
 {
-    cerr<<endl;
     cerr<<"["<<RED<<"ERROR"<<RESET<<"] "<<error<<endl<<endl;
 }
 
 void Printer::printErrorWithReason(const char* error, const char* reason)
 {
-    cerr<<endl;
     cerr<<"["<<RED<<"ERROR"<<RESET<<"] "<<error<<endl;
     cerr<<"\t"<<RED<<"Reason: "<<RESET<<reason<<endl<<endl;
 }
@@ -41,6 +38,7 @@ void Printer::printPrompt(const char* prompt)
 
 void Printer::printLoadBar(double current, double end, bool error)
 {
+    cout<<"\r";
     if(current >= end)
         cout<<GREEN;
     else
@@ -73,8 +71,6 @@ void Printer::printLoadBar(double current, double end, bool error)
 
     if(current >= end)
         cout<<endl<<endl;
-    else
-        cout<<"\r";
 
     if(error)
         cout<<endl;

@@ -46,7 +46,15 @@ void uploadCommand(string filename) //changed argument with filename
     readFile.open(filename.c_str(), ios::in | ios::binary | ios::ate);
     if (!readFile.is_open())
     {
-        Printer::printError("file doesn't exists");
+        Printer::printError("File doesn't exists");
+        return;
+    }
+
+    readFile.seekg(0, ios::end);
+    long fileSize = readFile.tellg();
+    if(fileSize > 4294967296)
+    {
+        Printer::printError("File size too much big");
         return;
     }
 
@@ -70,6 +78,10 @@ void uploadCommand(string filename) //changed argument with filename
     {
         Printer::printError("A network error has occoured sending the file");
     }
+    //catch (const FileTooMuchBigException &ftmbe)
+    //{
+    //    Printer::printError(ftmbe.what());
+    //}
 
     readFile.close();
 }

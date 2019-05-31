@@ -57,6 +57,15 @@ class InvalidDigitalSignException : public SecureConnectionException
     }
 };
 
+//class FileTooMuchBigException : public SecureConnectionException
+//{
+//    public:
+//    const char *what() const throw()
+//    {
+//        return "File too much big";
+//    }
+//};
+
 class SecureConnection
 {
 private:
