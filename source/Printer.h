@@ -18,4 +18,5 @@ class Printer
         static void printPrompt(const char* prompt);
         static void printLoadBar(double current, double end, bool error);
         static void printNormal(const char* msg);
+        static void printTag(const char* TAG, const char* msg, const char* color);
 };

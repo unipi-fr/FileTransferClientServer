@@ -28,6 +28,10 @@ SecureConnection::SecureConnection(IClientServerTCP *csTCP)
     }
 }
 
+void SecureConnection::destroyKeys(){
+    _sMsgCreator->destroyKeysIfSetted();
+}
+
 int SecureConnection::readNamesFromFile(const char* filename, string* &names){
 	ifstream is;
 	is.open(filename);
@@ -167,7 +171,8 @@ void SecureConnection::computeSharedKeys(DH *dh_session, BIGNUM *bn)
 
     _sMsgCreator->derivateKeys(sharedkey,sharedkey_size);
     
-    //TODO: Fare MEMESET \0 di sharedKey
+    //cleaning sharedkey
+    explicit_bzero(sharedkey, sharedkey_size);
     free(sharedkey);
 }
 
@@ -318,8 +323,8 @@ void SecureConnection::establishConnectionClient()
     
     EVP_PKEY* privKey = _sMsgCreator->ExtractPrivateKey("certificateSettings/rsa_privkey.pem");
     sendAutenticationAndFreshness(msg,msgLen,privKey,cert);
-    //TODO: MEMSET CHIAVE PRIVATA
-
+    
+    //cleaning privatekey
     EVP_PKEY_free(privKey);
     X509_free(cert);
     free(msg);
@@ -348,20 +353,27 @@ int SecureConnection::sendFile(ifstream &file, bool stars)
         Printer::printInfo("Attempt to send and empy file");
     }
     string strFileSize = to_string(fileSize);
+
+    if(fileSize > MAX_FILE_SIZE)
+    {
+    	sendSecureMsg((void *)"-2", 3);
+        throw FileSizeException();
+    }
+
     sendSecureMsg((void *)strFileSize.c_str(), strFileSize.length());
 
-    file.seekg(0, ios::beg);
-    char buffer[BUFF_SIZE];
-
     size_t fileSended = 0;
-
-    string mess = "fileSize = " + strFileSize;
-    Printer::printInfo(mess.c_str());
 
     if (fileSize == 0)
     {
         return fileSended;
     }
+
+    file.seekg(0, ios::beg);
+    char buffer[BUFF_SIZE];
+
+    string mess = "fileSize = " + strFileSize;
+    Printer::printInfo(mess.c_str());
 
     while (!file.eof() && fileSended < fileSize)
     {
@@ -396,9 +408,14 @@ int SecureConnection::receiveFile(const char *filename, bool stars)
 
     free(writer);
 
-    if(fileSize < 0)
+    if(fileSize == -1)
     {
         throw FileDoesNotExistsException();
+    }
+
+    if(fileSize == -2)
+    {
+        throw FileSizeException();
     }
 
     stringstream mess;
@@ -445,6 +462,10 @@ int SecureConnection::reciveAndPrintBigMessage()
     ss << writer;
     ss >> fileSize;
     free(writer);
+    if(fileSize == -2)
+    {
+        throw FileSizeException();
+    }
     
     size_t writedBytes;
     for (writedBytes = 0; writedBytes < fileSize; writedBytes += lenght)

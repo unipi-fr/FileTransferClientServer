@@ -46,7 +46,7 @@ void uploadCommand(string filename) //changed argument with filename
     readFile.open(filename.c_str(), ios::in | ios::binary | ios::ate);
     if (!readFile.is_open())
     {
-        Printer::printError("file doesn't exists");
+        Printer::printError("File doesn't exists");
         return;
     }
 
@@ -63,11 +63,15 @@ void uploadCommand(string filename) //changed argument with filename
 
     try
     {
+        Printer::printNormal("\n");
         _secureConnection->sendFile(readFile, true);
     }
     catch (const NetworkException &ne)
     {
         Printer::printError("A network error has occoured sending the file");
+    }
+    catch(const FileSizeException &fse){
+        Printer::printError(fse.what());
     }
 
     readFile.close();
@@ -87,8 +91,12 @@ void retriveListCommand()
 
     try
     {
+        Printer::printNormal("\n");
         _secureConnection->reciveAndPrintBigMessage();
     }
+    catch (const FileSizeException &fse){
+		Printer::printError(fse.what());
+	}
     catch (const NetworkException &ne)
     {
         Printer::printError("A network error has occoured downloading the message");
@@ -123,8 +131,14 @@ void retriveFileCommand(string filename)
 
     try
     {
+        Printer::printNormal("\n");
         _secureConnection->receiveFile(tmpFile.c_str(), true);
     }
+    catch (const FileSizeException &fse){
+		Printer::printError(fse.what());
+        system("rm -r tmp");
+        return;
+	}
     catch (const DisconnectionException &de)
     {
         system("rm -r tmp");
@@ -155,12 +169,12 @@ void retriveFileCommand(string filename)
 
 void helpCommand()
 {
-    cout << "[u | upload] <filename>: upload <filename> to the server" << endl;
-    cout << "[rl | retrive-list]: retrive the list of files available from the server." << endl;
-    cout << "[rf | retrive-file] <filename>: per ricevere un file dal server digitare" << endl;
-    cout << "[quit | exit | q]: for closing the program" << endl;
-    cout << " ------------------------------------------------------------" << endl
-         << endl;
+    Printer::printTag("   u |       upload" , "<filename>: upload <filename> to the server" , CYAN);
+    Printer::printTag("  rl | retrive-list" , ": retrive the list of files available from the server." , CYAN);
+    Printer::printTag("  rf | retrive-file" , "<filename>: per ricevere un file dal server digitare" , CYAN);
+    Printer::printTag("quit |     exit | q" , ": for closing the program" , CYAN);
+    Printer::printNormal("\n");
+    
 }
 
 void quitCommand()
@@ -171,7 +185,8 @@ void quitCommand()
 
 int main(int num_args, char *args[])
 {
-    cout<<endl;
+    Printer::printNormal("\n");
+    Printer::printMsg("--- WELCOME ON SECURE FILE TRANSFER CLIENT ---");
     // 0 comando
     // 1 parametro indirizzo ip;
     // 2 parametro numero di porta;
@@ -228,10 +243,11 @@ int main(int num_args, char *args[])
     string command;
     string argument;
     string garb;
+
     size_t pos = 0;
 
     bool exit = false;
-    cout << "Insert the command (digit 'help' or 'h' for the command list):" << endl;
+    Printer::printNormal("Insert the command (digit 'help' or 'h' for the command list):");
     try
     {
         for (;;)
@@ -239,7 +255,6 @@ int main(int num_args, char *args[])
             Printer::printPrompt("$>");
             cin >> command;
             
-            cout<<endl;
             if (command == "u" || command == "upload")
             {
                 cin >> argument;

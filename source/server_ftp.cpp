@@ -15,6 +15,7 @@ int _activeSocket;
 void disconnectClient()
 {
 	_server->forceClientDisconnection();
+	_secureConnection->destroyKeys();
 	_activeSocket = -1;
 	Printer::printInfo((char*)"Client Disconnected");
 }
@@ -118,11 +119,10 @@ void retriveFileCommand(string fileName)
 	readFile.open(pathFileName.c_str(), ios::in | ios::binary);
 	if (!readFile.is_open())
 	{
-		//TODO: avvisare il clien che il file non esiste
 		Printer::printWaring((char*)"not possible open the file or the file demanded doesn't exist");
-
+		// saying to client that file does not exists
 		string strFileSize = to_string((long)-1);
-		_secureConnection->sendSecureMsg((void *)strFileSize.c_str(), strFileSize.length());
+		_secureConnection->sendSecureMsg((void *)strFileSize.c_str(), strFileSize.length() + 1);
 
 		return;
 	}
@@ -141,6 +141,10 @@ void retriveFileCommand(string fileName)
 		Printer::printErrorWithReason((char*)"Failed to upload a part of the file", (char*)"Hash not valid");
 		disconnectClient();
 	}
+	//catch (const FileTooMuchBigException &ftmbe)
+	//{
+	//	  Printer::printError(ftmbe.what());
+	//}
 
 	readFile.close();
 }
@@ -183,9 +187,10 @@ void manageConnection()
 		disconnectClient();
 		return;
 	}
+	
 	commandStream >> command;
 	stringstream mess;
-	mess<<"[COMMAND] '"<<command<<"'";
+	mess<<"\n[COMMAND] '"<<command<<"'";
 	Printer::printMsg(mess.str().c_str());
 
 	if (command == "u")
@@ -206,15 +211,14 @@ void manageConnection()
 
 int main(int num_args, char *args[])
 {
-	cout<<endl;
+	Printer::printNormal("\n");
+	Printer::printMsg("--- WELCOME ON SECURE FILE TRANSFER SERVER ---");
 	// check parameter
 	if (num_args != 2)
 	{
-		cout << endl
-			 << "[ERRORE] Number of parameter not valid." << endl;
-		cout << "Usage: " << args[0] << " <portNumber>" << endl;
-		cout << "closing progam..." << endl
-			 << endl;
+		Printer::printError("Number of parameters are not valid.");
+        Printer::printNormal(string("Usage: " + string(args[0]) + " <PORT_NUMBER>").c_str());
+        Printer::printNormal("Closing program...\n\n");
 		return -1;
 	}
 
@@ -236,7 +240,6 @@ int main(int num_args, char *args[])
 
 	stringstream mess;
 	mess << "Succesfull listening on port " << portNumber;
-
 	Printer::printMsg(mess.str().c_str());
 
 	_secureConnection = new SecureConnection(_server);
@@ -274,10 +277,13 @@ int main(int num_args, char *args[])
 			try
 			{
 				manageConnection();
+			}catch (const FileSizeException &fse){
+				Printer::printError(fse.what());
 			}
 			catch (const DisconnectionException &de)
 			{
 				_activeSocket = -1;
+				_secureConnection->destroyKeys();
 				Printer::printWaring("Client Disconnected");
 			}
 			catch (const exception &e)
