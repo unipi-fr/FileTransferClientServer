@@ -65,16 +65,21 @@ SecureMessageCreator::SecureMessageCreator()
   _hashSize = EVP_MD_size(_hashAlgorithm);
 }
 
-bool SecureMessageCreator::derivateKeys(unsigned char* inizializationKey, size_t ikSize){
-  //cout<<"[DEBUG] generating session and HMAC keys..."<<endl;
+void SecureMessageCreator::destroyKeysIfSetted(){
   if(_hmac_key != NULL){
-    //TODO explicit MEMZERO
+    explicit_bzero(_hmac_key, _hashSize);
     free(_hmac_key);
+    _hmac_key = NULL;
   }
   if(_encrypt_key != NULL){
-    //TODO explicit MEMZERO
+    explicit_bzero(_encrypt_key, _encriptKeySize);
     free(_encrypt_key);
+    _encrypt_key = NULL;
   }
+}
+
+bool SecureMessageCreator::derivateKeys(unsigned char* inizializationKey, size_t ikSize){
+  //cout<<"[DEBUG] generating session and HMAC keys..."<<endl;
   
   size_t halfSize = ikSize/2;
   unsigned char* firstPart = inizializationKey;

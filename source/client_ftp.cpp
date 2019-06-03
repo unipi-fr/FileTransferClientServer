@@ -50,14 +50,6 @@ void uploadCommand(string filename) //changed argument with filename
         return;
     }
 
-    readFile.seekg(0, ios::end);
-    long fileSize = readFile.tellg();
-    if(fileSize > 4294967296)
-    {
-        Printer::printError("File size too much big");
-        return;
-    }
-
     try
     {
         sendUploadCommand(filename);
@@ -78,10 +70,9 @@ void uploadCommand(string filename) //changed argument with filename
     {
         Printer::printError("A network error has occoured sending the file");
     }
-    //catch (const FileTooMuchBigException &ftmbe)
-    //{
-    //    Printer::printError(ftmbe.what());
-    //}
+    catch(const FileSizeException &fse){
+        Printer::printError(fse.what());
+    }
 
     readFile.close();
 }
@@ -103,6 +94,9 @@ void retriveListCommand()
         Printer::printNormal("\n");
         _secureConnection->reciveAndPrintBigMessage();
     }
+    catch (const FileSizeException &fse){
+		Printer::printError(fse.what());
+	}
     catch (const NetworkException &ne)
     {
         Printer::printError("A network error has occoured downloading the message");
@@ -140,6 +134,11 @@ void retriveFileCommand(string filename)
         Printer::printNormal("\n");
         _secureConnection->receiveFile(tmpFile.c_str(), true);
     }
+    catch (const FileSizeException &fse){
+		Printer::printError(fse.what());
+        system("rm -r tmp");
+        return;
+	}
     catch (const DisconnectionException &de)
     {
         system("rm -r tmp");

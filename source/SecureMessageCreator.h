@@ -21,6 +21,7 @@ class SecureMessageCreator {
   public:
     SecureMessageCreator();
     bool derivateKeys(unsigned char* inizializationKey, size_t ikSize);
+    void destroyKeysIfSetted();
 
     int EncryptAndSignMessage(unsigned char* plainText, int plainTextLen, unsigned char** secureText);
     bool DecryptAndCheckSign(unsigned char* secureText, int secureTextLen, unsigned char** plainText, int &plainTextLen);

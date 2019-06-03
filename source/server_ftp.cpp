@@ -15,6 +15,7 @@ int _activeSocket;
 void disconnectClient()
 {
 	_server->forceClientDisconnection();
+	_secureConnection->destroyKeys();
 	_activeSocket = -1;
 	Printer::printInfo((char*)"Client Disconnected");
 }
@@ -118,9 +119,8 @@ void retriveFileCommand(string fileName)
 	readFile.open(pathFileName.c_str(), ios::in | ios::binary);
 	if (!readFile.is_open())
 	{
-		//TODO: avvisare il clien che il file non esiste
 		Printer::printWaring((char*)"not possible open the file or the file demanded doesn't exist");
-
+		// saying to client that file does not exists
 		string strFileSize = to_string((long)-1);
 		_secureConnection->sendSecureMsg((void *)strFileSize.c_str(), strFileSize.length() + 1);
 
@@ -277,10 +277,13 @@ int main(int num_args, char *args[])
 			try
 			{
 				manageConnection();
+			}catch (const FileSizeException &fse){
+				Printer::printError(fse.what());
 			}
 			catch (const DisconnectionException &de)
 			{
 				_activeSocket = -1;
+				_secureConnection->destroyKeys();
 				Printer::printWaring("Client Disconnected");
 			}
 			catch (const exception &e)

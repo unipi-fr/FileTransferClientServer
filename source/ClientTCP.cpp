@@ -27,7 +27,6 @@ void ClientTCP::socketTCPInit()
 
 ClientTCP::ClientTCP(const char *ipServer, unsigned short serverPortNumber)
 {
-    //TODO: Da decontaminare
     memset(_ipServer, 0, DIM_IP);
     memcpy(_ipServer, ipServer, DIM_IP - 1);
     _serverPortNumber = serverPortNumber;
