@@ -160,7 +160,7 @@ stringstream receiveCommad()
 
 	res << command;
 
-	delete (void *command);
+	delete command;
 
 	return res;
 }
