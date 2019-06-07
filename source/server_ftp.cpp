@@ -5,6 +5,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <unistd.h>
 
 using namespace std;
 
@@ -33,7 +34,7 @@ void uploadCommand(string fileName)
 	}
 
 	string cmd;
-	system("mkdir -p uploadedFiles");
+	system("/bin/mkdir -p uploadedFiles");
 	string tmpFile = "tmp.txt";
 
 	try
@@ -43,7 +44,7 @@ void uploadCommand(string fileName)
 	catch (const NetworkException &ne)
 	{
 		Printer::printError((char*)"A network error has occured downloading the file");
-		cmd = "rm " + tmpFile;
+		cmd = "/bin/rm " + tmpFile;
 		system(cmd.c_str());
 		disconnectClient();
 		return;
@@ -51,20 +52,20 @@ void uploadCommand(string fileName)
 	catch (const HashNotValidException &hnve)
 	{
 		Printer::printErrorWithReason((char*)"Failed to download a part of the file", (char*)"Hash not valid");
-		cmd = "rm " + tmpFile;
+		cmd = "/bin/rm " + tmpFile;
 		system(cmd.c_str());
 		disconnectClient();
 		return;
 	}
 
-	cmd = "mv " + tmpFile + " uploadedFiles/" + fileName;
+	cmd = "/bin/mv " + tmpFile + " uploadedFiles/" + fileName;
 	system(cmd.c_str());
 }
 
 void retriveListCommand()
 {
 	Printer::printInfo((char*) "Creating List");
-	system("ls -s -h -1 uploadedFiles/ > fileList.txt");
+	system("/bin/ls -sh1 uploadedFiles/ > fileList.txt");
 
 	ifstream readFile;
 
@@ -96,7 +97,7 @@ void retriveListCommand()
 		disconnectClient();
 	}
 
-	system("rm fileList.txt");
+	system("/bin/rm fileList.txt");
 
 	Printer::printInfo((char*)"FileList sended");
 }
@@ -159,7 +160,7 @@ stringstream receiveCommad()
 
 	res << command;
 
-	free((void *)command);
+	delete (void *command);
 
 	return res;
 }

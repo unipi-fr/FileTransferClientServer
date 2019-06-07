@@ -125,7 +125,7 @@ void retriveFileCommand(string filename)
         return;
     }
 
-    system("mkdir -p tmp");
+    system("bin/mkdir -p tmp");
     string tmpFile = "tmp/tmp.txt";
     string cmd;
 
@@ -136,35 +136,35 @@ void retriveFileCommand(string filename)
     }
     catch (const FileSizeException &fse){
 		Printer::printError(fse.what());
-        system("rm -r tmp");
+        system("bin/rm -r tmp");
         return;
 	}
     catch (const DisconnectionException &de)
     {
-        system("rm -r tmp");
+        system("bin/rm -r tmp");
         throw de;
     }
     catch (const NetworkException &ne)
     {
         Printer::printError("A network error has occoured downloading the file");
-        system("rm -r tmp");
+        system("bin/rm -r tmp");
         return;
     }
     catch (const HashNotValidException &hnve)
     {
-        system("rm -r tmp");
+        system("bin/rm -r tmp");
         throw hnve;
     }
     catch (const FileDoesNotExistsException &fdnee)
     {
         Printer::printError(fdnee.what());
-        system("rm -r tmp");
+        system("bin/rm -r tmp");
         return;
     }
 
-    cmd = "mv " + tmpFile + " " + filename;
+    cmd = "bin/mv " + tmpFile + " " + filename;
     system(cmd.c_str());
-    system("rm -r tmp");
+    system("bin/rm -r tmp");
 }
 
 void helpCommand()

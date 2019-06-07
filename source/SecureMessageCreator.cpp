@@ -68,12 +68,12 @@ SecureMessageCreator::SecureMessageCreator()
 void SecureMessageCreator::destroyKeysIfSetted(){
   if(_hmac_key != NULL){
     explicit_bzero(_hmac_key, _hashSize);
-    free(_hmac_key);
+    delete _hmac_key;
     _hmac_key = NULL;
   }
   if(_encrypt_key != NULL){
     explicit_bzero(_encrypt_key, _encriptKeySize);
-    free(_encrypt_key);
+    delete _encrypt_key;
     _encrypt_key = NULL;
   }
 }
@@ -89,7 +89,7 @@ bool SecureMessageCreator::derivateKeys(unsigned char* inizializationKey, size_t
 
   if(!simpleHash256(firstPart,halfSize,tmpSha256)){
     cout<<"[DEBUG] error computing simple hash for generating hash key"<<endl;
-    free(tmpSha256);
+    delete tmpSha256;
     return false;
   }
 
@@ -101,7 +101,7 @@ bool SecureMessageCreator::derivateKeys(unsigned char* inizializationKey, size_t
 
   if(!simpleHash256(secondPart,ikSize-halfSize,tmpSha256)){
     cout<<"[DEBUG] error computing simple hash for generating hash key"<<endl;
-    free(tmpSha256);
+    delete tmpSha256;
     return false;
   }
   _encrypt_key = new unsigned char[_encriptKeySize];
@@ -109,7 +109,7 @@ bool SecureMessageCreator::derivateKeys(unsigned char* inizializationKey, size_t
   //cout<<"[DEBUG] session key:"<<endl;
   //BIO_dump_fp(stdout,(char*)_encrypt_key,_encriptKeySize);
 
-  free(tmpSha256);
+  delete tmpSha256;
   return true;
 }
 
@@ -219,7 +219,7 @@ bool SecureMessageCreator::check_hash(unsigned char *inBuf, int bufLen, unsigned
   calculatedHash = hash(inBuf, bufLen);
   //cout<<"[calculatedHash]"<<calculatedHash<<endl;
   bool result = CRYPTO_memcmp(givenHash, calculatedHash, _hashSize) == 0;
-  free(calculatedHash);
+  delete calculatedHash;
   return result;
 }
 
@@ -245,8 +245,8 @@ int SecureMessageCreator::EncryptAndSignMessage(unsigned char *plainText, int pl
 
   //cout<<"[secureText]"<<(*secureText)<<endl;
 
-  free(messageToEncrypt);
-  free(hashSign);
+  delete messageToEncrypt;
+  delete hashSign;
   //cout << flush;
   return secureTextLen;
 }
@@ -276,7 +276,7 @@ bool SecureMessageCreator::DecryptAndCheckSign(unsigned char *secureText, int se
   memcpy(*plainText, msg, plainTextLen);
 
   //cout<<"[Message form plainText]"<<msg<<endl;
-  free(decryptedText);
+  delete decryptedText;
   //cout << flush;
   return true;
 }

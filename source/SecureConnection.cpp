@@ -118,7 +118,7 @@ void SecureConnection::sendSecureMsg(void *buffer, size_t bufferSize)
     unsigned char *secureMessage;
     size_t msgSize = _sMsgCreator->EncryptAndSignMessage((unsigned char *)buffer, bufferSize, &secureMessage);
     _csTCP->sendMsg(secureMessage, msgSize);
-    free(secureMessage);
+    delete secureMessage;
 }
 
 int SecureConnection::recvSecureMsg(void **plainText)
@@ -130,7 +130,7 @@ int SecureConnection::recvSecureMsg(void **plainText)
     int plainTextSize;
     bool check = _sMsgCreator->DecryptAndCheckSign(encryptedText, numberOfBytes, (unsigned char **)plainText, plainTextSize);
 
-    free(encryptedText);
+    delete encryptedText;
 
     if (!check)
     {
@@ -173,7 +173,7 @@ void SecureConnection::computeSharedKeys(DH *dh_session, BIGNUM *bn)
     
     //cleaning sharedkey
     explicit_bzero(sharedkey, sharedkey_size);
-    free(sharedkey);
+    delete sharedkey;
 }
 
 void SecureConnection::sendAutenticationAndFreshness(unsigned char* expectedMsg,int msgLen, EVP_PKEY* privKey, X509* cert){
@@ -185,7 +185,7 @@ void SecureConnection::sendAutenticationAndFreshness(unsigned char* expectedMsg,
 
     int ret = sendCertificate(cert);
     
-    free(signature);
+    delete signature;
 }
 
 bool SecureConnection::recvAutenticationAndVerify(unsigned char* expectedMsg, int expectedMsgLen)
@@ -212,7 +212,7 @@ bool SecureConnection::recvAutenticationAndVerify(unsigned char* expectedMsg, in
     bool  signResult = _sMsgCreator->verify(expectedMsg, expectedMsgLen, signature, signatureLen, pubKey);
     //bool signResult = false;
     
-    free(signature);
+    delete signature;
     
     return signResult;
 }
@@ -250,8 +250,8 @@ void SecureConnection::establishConnectionServer()
 
     msgLen = concatenate(Yc,YcLen,Ys,YsLen,msg);
 
-    free(Yc);
-    free(Ys);
+    delete Yc;
+    delete Ys;
     
     X509* cert = _certVal->loadCertificateFromFile("certificateSettings/my_certificate.pem");
     EVP_PKEY* privKey = _sMsgCreator->ExtractPrivateKey("certificateSettings/rsa_privkey.pem");
@@ -262,7 +262,7 @@ void SecureConnection::establishConnectionServer()
 
     bool verifySing = recvAutenticationAndVerify(msg,msgLen);
     
-    free(msg);
+    delete msg;
     DH_free(dh_session);
     
     if(!verifySing)
@@ -308,14 +308,14 @@ void SecureConnection::establishConnectionClient()
 
     msgLen = concatenate(Yc,YcLen,Ys,YsLen,msg);
 
-    free(Yc);
-    free(Ys);
+    delete Yc;
+    delete Ys;
 
     bool verifySing = recvAutenticationAndVerify(msg,msgLen);
 
     if(!verifySing)
     {
-        free(msg);
+        delete msg;
         throw InvalidDigitalSignException(); 
     }
 
@@ -327,14 +327,14 @@ void SecureConnection::establishConnectionClient()
     //cleaning privatekey
     EVP_PKEY_free(privKey);
     X509_free(cert);
-    free(msg);
+    delete msg;
     
     DH_free(dh_session);
 
     // for Atu verification //////////////////////////////////////////
     unsigned char* checkConnectionEnstablished;
     int checkSize = recvSecureMsg((void**) &checkConnectionEnstablished);
-    free(checkConnectionEnstablished);
+    delete checkConnectionEnstablished;
     //////////////////////////////////////////////////////////////////
 } 
 
@@ -406,7 +406,7 @@ int SecureConnection::receiveFile(const char *filename, bool stars)
     ss << writer;
     ss >> fileSize;
 
-    free(writer);
+    delete writer;
 
     if(fileSize == -1)
     {
@@ -441,7 +441,7 @@ int SecureConnection::receiveFile(const char *filename, bool stars)
             Printer::printLoadBar(writedBytes + lenght, fileSize,false);
 
         writeFile.write(writer, lenght);
-        free(writer);
+        delete writer;
     }
 
     writeFile.close();
@@ -461,7 +461,7 @@ int SecureConnection::reciveAndPrintBigMessage()
     stringstream ss;
     ss << writer;
     ss >> fileSize;
-    free(writer);
+    delete writer;
     if(fileSize == -2)
     {
         throw FileSizeException();
@@ -473,7 +473,7 @@ int SecureConnection::reciveAndPrintBigMessage()
         lenght = recvSecureMsg((void **)&writer);
         
         Printer::printNormal(writer);
-        free(writer);
+        delete writer;
     }
     
     Printer::printNormal("\n");
