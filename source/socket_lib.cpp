@@ -47,10 +47,7 @@ int recvTCP(int listenSocket, void** buffer){
     bufferSize = ntohs(standardSize);
     
     //alloco il buffer
-    (*buffer) = malloc(bufferSize);
-    if((*buffer) == NULL ){
-        throw MallocException();
-    }
+    (*buffer) = new unsigned char[bufferSize];
 
     //uso la lunghezzaPrecisa per ricevere la stringa
     numberOfBytes = recv(listenSocket, (void*)(*buffer), bufferSize, MSG_WAITALL);

@@ -1,14 +1,6 @@
 #include <exception>
 #define DIM_IP 16
 
-class MallocException : public std::exception
-{
-   const char *what() const throw()
-   {
-      return "Malloc failed";
-   }
-};
-
 class SocketLibException : public std::exception
 {
    virtual const char *what() const throw() = 0;
