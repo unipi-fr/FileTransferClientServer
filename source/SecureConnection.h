@@ -84,8 +84,10 @@ public:
     int sendCertificate(X509* cert);
     int rcvCertificate(X509* &cert);
 
-    void sendSecureMsg(void *buffer, size_t bufferSize);
-    int recvSecureMsg(void **plainText);
+    unsigned long generateNonce();
+
+    void sendSecureMsg(void *buffer, size_t bufferSize, bool useNonce, unsigned long nonce);
+    int recvSecureMsg(void **plainText, bool useNonce, unsigned long nonce);
 
     void sendAutenticationAndFreshness(unsigned char* expectedMsg, int msgLen, EVP_PKEY* privKey, X509* cert);
     bool recvAutenticationAndVerify(unsigned char* msg,int msgLen);
@@ -95,9 +97,9 @@ public:
     
     void destroyKeys();
 
-    int sendFile(std::ifstream &file, bool stars);
-    int receiveFile(const char *filename, bool stars);
-    int reciveAndPrintBigMessage();
+    int sendFile(std::ifstream &file, bool stars, unsigned long nonce);
+    int receiveFile(const char *filename, bool stars, unsigned long nonce);
+    int reciveAndPrintBigMessage(unsigned long nonce);
 
     
 };

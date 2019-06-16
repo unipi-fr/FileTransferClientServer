@@ -3,6 +3,7 @@
 #include <openssl/conf.h>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
+#include <openssl/rand.h>
 #include <iostream>
 #include <unistd.h>
 #include <string.h>
@@ -51,9 +52,11 @@ DH* SecureMessageCreator::get_dh2048(void)
 
 SecureMessageCreator::SecureMessageCreator()
 {
+  RAND_poll();
+
   //declaring the hash function we want to use
   _hashAlgorithm = EVP_sha256();
-  _encryptAlgorithm = EVP_aes_128_ecb();
+  _encryptAlgorithm = EVP_aes_128_cbc();
 
   _hmacKeySize = 32;
   _hmac_key = NULL;
@@ -65,6 +68,14 @@ SecureMessageCreator::SecureMessageCreator()
   _hashSize = EVP_MD_size(_hashAlgorithm);
 }
 
+unsigned long SecureMessageCreator::getNonce(){
+  unsigned long nonce;
+
+  RAND_bytes((unsigned char*)&nonce, sizeof(unsigned long));
+
+  return nonce;
+}
+  
 void SecureMessageCreator::destroyKeysIfSetted(){
   if(_hmac_key != NULL){
     explicit_bzero(_hmac_key, _hashSize);
@@ -127,20 +138,33 @@ bool SecureMessageCreator::simpleHash256(unsigned char* input,size_t inputLenght
     return true;
 }
 
-unsigned char *SecureMessageCreator::hash(unsigned char *inBuf, int inLen)
+unsigned char *SecureMessageCreator::hash(unsigned char *inBuf, int inLen, bool useNonce, unsigned long nonce)
 {
   unsigned char *outBuf;
+  unsigned char *toHashBuf;
+  int hashBufSize;
+  
+  if(useNonce){
+    hashBufSize = inLen + sizeof(unsigned long);
+    toHashBuf = new unsigned char[hashBufSize];
+
+    memcpy(toHashBuf, &nonce, sizeof(unsigned long));
+    memcpy(toHashBuf + sizeof(unsigned long), inBuf, inLen);
+  }else{
+    hashBufSize = inLen;
+    toHashBuf = inBuf;  
+  }
 
   outBuf = new unsigned char[_hashSize];
 
   //Creazione del messaggio contesto digest
   HMAC_CTX *mdctx;
   mdctx = HMAC_CTX_new();
-  //cout<<"[DEBUG|sign] inizialization"<<endl;
+
   //Init,Update,Finalise digest
   HMAC_Init_ex(mdctx, _hmac_key, _hmacKeySize, _hashAlgorithm, NULL);
 
-  if (!HMAC_Update(mdctx, (unsigned char *)inBuf, inLen))
+  if (!HMAC_Update(mdctx, (unsigned char *)toHashBuf, hashBufSize))
   {
     //errore
     cout << "[SUPER ERRORE HMAC]" << endl;
@@ -151,83 +175,106 @@ unsigned char *SecureMessageCreator::hash(unsigned char *inBuf, int inLen)
   //Delete context
   HMAC_CTX_free(mdctx);
 
+  if(useNonce)
+    delete toHashBuf;
+
   return outBuf;
 }
 
-int SecureMessageCreator::encrypt(unsigned char *plaintext, int plainTextLen, unsigned char *iv, unsigned char *chipertext)
+
+void SecureMessageCreator::initEncryptContext(unsigned char* iv)
 {
-  EVP_CIPHER_CTX *context;
-
-  int len;
-  int chiperTextLen = 0;
-
   /*Creazione del contesto*/
   context = EVP_CIPHER_CTX_new();
-  //cout<<"[DEBUG|encrypt] Inizialization "<<endl;
-  //Inizializzione
-  EVP_EncryptInit(context, _encryptAlgorithm, _encrypt_key, iv);
-  int res = 5;
-  //Encrypt update
-  if (!EVP_EncryptUpdate(context, chipertext, &len, plaintext, plainTextLen))
-  {
-    cout << "[SUPER ERRORE Encrypt]" << endl;
-  }
-  chiperTextLen += len;
 
-  //cout<<"[DEBUG|encrypt] final "<<endl;
+  //Inizializzione
+  int ret = EVP_EncryptInit(context, _encryptAlgorithm, _encrypt_key, iv);
+  if(ret != 1){
+    throw new EncryptInitException();
+  }
+}
+
+int SecureMessageCreator::finalAndFreeEncryptContext(unsigned char* chiperText, int &chiperTextLen)
+{
+  int len;
   //Encrypt final: finalizza la cifratura
-  EVP_EncryptFinal(context, chipertext + len, &len);
+  EVP_EncryptFinal(context, chiperText + chiperTextLen, &len);
   chiperTextLen += len;
 
   EVP_CIPHER_CTX_free(context);
 
-  return chiperTextLen;
+  return len;
 }
 
-int SecureMessageCreator::decrypt(unsigned char *cipherText, int cipherTextLen, unsigned char *iv, unsigned char *decryptedText)
+void SecureMessageCreator::initDecryptContext(unsigned char* iv)
 {
-  EVP_CIPHER_CTX *context;
-
-  int len;
-  int decriptedTextLen = 0;
-
   /*Creazione del contesto*/
   context = EVP_CIPHER_CTX_new();
 
   //Inizializzione
-  EVP_DecryptInit(context, EVP_aes_128_ecb(), _encrypt_key, iv);
+  int ret = EVP_DecryptInit(context, _encryptAlgorithm, _encrypt_key, iv);
+  if(ret != 1){
+    throw new EncryptInitException();
+  }
+}
+
+int SecureMessageCreator::finalAndFreeDecryptContext(unsigned char* plainText, int &plainTextLen)
+{
+  int len;
+  //Encrypt final: finalizza la cifratura
+  EVP_DecryptFinal(context, plainText + plainTextLen, &len);
+  plainTextLen += len;
+
+  EVP_CIPHER_CTX_free(context);
+
+  return len;
+}
+
+int SecureMessageCreator::updateEncrypt(unsigned char *plaintext, int plainTextLen, unsigned char *chipertext)
+{
+  int len;
+  int chiperTextLen = 0;
+
+  //Encrypt update
+  if (!EVP_EncryptUpdate(context, chipertext, &len, plaintext, plainTextLen))
+  {
+    cout << "[SUPER ERROR Encrypt]" << endl;
+  }
+  chiperTextLen += len;
+  
+  return chiperTextLen;
+}
+
+int SecureMessageCreator::updateDecrypt(unsigned char *cipherText, int cipherTextLen, unsigned char *decryptedText)
+{
+  int len;
+  int decriptedTextLen = 0;
 
   //Encrypt update
   if (!EVP_DecryptUpdate(context, decryptedText, &len, cipherText, cipherTextLen))
   {
-    cout << "[SUPER ERRORE Encrypt]" << endl;
+    cout << "[SUPER ERROR Decrypt]" << endl;
   }
   decriptedTextLen += len;
-
-  //Encrypt final: finalizza la cifratura
-  EVP_DecryptFinal(context, decryptedText + len, &len);
-  decriptedTextLen += len;
-
-  EVP_CIPHER_CTX_free(context);
 
   return decriptedTextLen;
 }
 
-bool SecureMessageCreator::check_hash(unsigned char *inBuf, int bufLen, unsigned char *givenHash)
+bool SecureMessageCreator::check_hash(unsigned char *inBuf, int bufLen, unsigned char *givenHash, bool useNonce, unsigned long nonce)
 {
   unsigned char *calculatedHash;
-  calculatedHash = hash(inBuf, bufLen);
+  calculatedHash = hash(inBuf, bufLen, useNonce, nonce);
   //cout<<"[calculatedHash]"<<calculatedHash<<endl;
   bool result = CRYPTO_memcmp(givenHash, calculatedHash, _hashSize) == 0;
   delete calculatedHash;
   return result;
 }
 
-int SecureMessageCreator::EncryptAndSignMessage(unsigned char *plainText, int plainTextLen, unsigned char **secureText)
+int SecureMessageCreator::EncryptAndSignMessageUpdate(unsigned char *plainText, int plainTextLen, unsigned char **secureText, bool useNonce, unsigned long nonce)
 {
   //cout<<"[plainText]"<<plainText<<endl;
 
-  unsigned char *hashSign = hash(plainText, plainTextLen);
+  unsigned char *hashSign = hash(plainText, plainTextLen, useNonce ,nonce);
 
   //cout<<"[HASH SIGN]"<<hashSign<<endl;
 
@@ -239,9 +286,9 @@ int SecureMessageCreator::EncryptAndSignMessage(unsigned char *plainText, int pl
   //cout<<"[messageToEncrypt] "<<messageToEncrypt<<endl;
 
   int messageToEncryptLen = plainTextLen + _hashSize;
-  *secureText = new unsigned char[messageToEncryptLen + 16]; //consider eventually padding
+  *secureText = new unsigned char[messageToEncryptLen]; // there is no padding
 
-  int secureTextLen = encrypt(messageToEncrypt, messageToEncryptLen, NULL, *secureText);
+  int secureTextLen = updateEncrypt(messageToEncrypt, messageToEncryptLen, *secureText);
 
   //cout<<"[secureText]"<<(*secureText)<<endl;
 
@@ -251,12 +298,12 @@ int SecureMessageCreator::EncryptAndSignMessage(unsigned char *plainText, int pl
   return secureTextLen;
 }
 
-bool SecureMessageCreator::DecryptAndCheckSign(unsigned char *secureText, int secureTextLen, unsigned char **plainText, int &plainTextLen)
+bool SecureMessageCreator::DecryptAndCheckSignUpdate(unsigned char *secureText, int secureTextLen, unsigned char **plainText, int &plainTextLen, bool useNonce, unsigned long nonce)
 {
   //cout<<"[SecureText]"<<secureText<<endl;
 
   unsigned char *decryptedText = new unsigned char[secureTextLen];
-  int decryptLen = decrypt(secureText, secureTextLen, NULL, decryptedText);
+  int decryptLen = updateDecrypt(secureText, secureTextLen, decryptedText);
   //cout<<"[dectyptedText]"<<decryptedText<<endl;
 
   unsigned char *msg = decryptedText + _hashSize;
@@ -264,7 +311,7 @@ bool SecureMessageCreator::DecryptAndCheckSign(unsigned char *secureText, int se
   //cout<<"[msg]"<<msg<<endl;
   //cout<<"[hash]"<<hash<<endl;
 
-  if (!check_hash(msg, decryptLen - _hashSize, hash))
+  if (!check_hash(msg, decryptLen - _hashSize, hash, useNonce ,nonce))
   {
     return false;
   }
@@ -278,6 +325,50 @@ bool SecureMessageCreator::DecryptAndCheckSign(unsigned char *secureText, int se
   //cout<<"[Message form plainText]"<<msg<<endl;
   delete decryptedText;
   //cout << flush;
+  return true;
+}
+
+int SecureMessageCreator::EncryptAndSignMessageFinal(unsigned char *plainText, int plainTextLen, unsigned char **secureText, bool useNonce, unsigned long nonce)
+{
+  unsigned char *hashSign = hash(plainText, plainTextLen, useNonce ,nonce);
+
+  unsigned char *messageToEncrypt = new unsigned char[plainTextLen + _hashSize];
+
+  memcpy(messageToEncrypt, hashSign, _hashSize);
+  memcpy(messageToEncrypt + _hashSize, plainText, plainTextLen);
+
+  int messageToEncryptLen = plainTextLen + _hashSize;
+  *secureText = new unsigned char[messageToEncryptLen + 16]; //consider the padding
+
+  int secureTextLen = updateEncrypt(messageToEncrypt, messageToEncryptLen, *secureText);
+  finalAndFreeEncryptContext(*secureText, secureTextLen);
+
+  delete messageToEncrypt;
+  delete hashSign;
+
+  return secureTextLen;
+}
+
+bool SecureMessageCreator::DecryptAndCheckSignFinal(unsigned char *secureText, int secureTextLen, unsigned char **plainText, int &plainTextLen, bool useNonce, unsigned long nonce)
+{
+  unsigned char *decryptedText = new unsigned char[secureTextLen];
+  int decryptLen = updateDecrypt(secureText, secureTextLen, decryptedText);
+  finalAndFreeDecryptContext(decryptedText, decryptLen);
+
+  unsigned char *msg = decryptedText + _hashSize;
+  unsigned char *hash = decryptedText;
+
+  if (!check_hash(msg, decryptLen - _hashSize, hash, useNonce ,nonce))
+  {
+    return false;
+  }
+
+  plainTextLen = decryptLen - _hashSize;
+  *plainText = new unsigned char [plainTextLen];
+  memcpy(*plainText, msg, plainTextLen);
+
+  delete decryptedText;
+
   return true;
 }
 

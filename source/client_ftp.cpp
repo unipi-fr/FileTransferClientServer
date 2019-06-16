@@ -3,6 +3,7 @@
 #include "Sanitizator.h"
 #include "Printer.h"
 #include <limits.h>
+#include <string.h>
 #include <iostream>
 #include <sstream>
 using namespace std;
@@ -10,22 +11,55 @@ using namespace std;
 SecureConnection *_secureConnection;
 ClientTCP *_client;
 
-void sendUploadCommand(string file)
+unsigned long sendUploadCommand(string file)
 {
-    string msg = "u " + file;
-    _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length() + 1);
+    unsigned long nonce;
+    unsigned char* nonceBuf;
+
+    string msg = "u";
+    _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length() + 1, false, 0);
+
+    _secureConnection->recvSecureMsg((void **) &nonceBuf, false, 0);
+    memcpy(&nonce, nonceBuf, sizeof(unsigned long));
+    delete nonceBuf;
+
+    _secureConnection->sendSecureMsg((void *)file.c_str(), file.length() + 1, true, nonce);
+    
+    return nonce;
 }
 
-void sendRetriveListCommand()
+unsigned long sendRetriveListCommand()
 {
+    unsigned long nonce;
+    unsigned char* nonceBuf;
+    
     string msg = "rl";
-    _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length() + 1);
+    _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length() + 1, false, 0);
+
+    _secureConnection->recvSecureMsg((void **) &nonceBuf, false, 0);
+    memcpy(&nonce, nonceBuf, sizeof(unsigned long));
+    delete nonceBuf;
+
+    _secureConnection->sendSecureMsg((void*) &nonce, sizeof(unsigned long), true, nonce);
+
+    return nonce;
 }
 
-void sendRetriveFileCommand(string file)
+unsigned long sendRetriveFileCommand(string file)
 {
-    string msg = "rf " + file;
-    _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length() + 1);
+    unsigned long nonce;
+    unsigned char* nonceBuf;
+
+    string msg = "rf ";
+    _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length() + 1, false, 0);
+
+    _secureConnection->recvSecureMsg((void **) &nonceBuf, false, 0);
+    memcpy(&nonce, nonceBuf, sizeof(unsigned long));
+    delete nonceBuf;
+    
+    _secureConnection->sendSecureMsg((void *)file.c_str(), file.length() + 1, true, nonce);
+
+    return nonce;
 }
 
 void uploadCommand(string filename) //changed argument with filename
@@ -50,9 +84,11 @@ void uploadCommand(string filename) //changed argument with filename
         return;
     }
 
+    unsigned long nonce;
+
     try
     {
-        sendUploadCommand(filename);
+        nonce = sendUploadCommand(filename);
     }
     catch (const NetworkException &e)
     {
@@ -64,7 +100,7 @@ void uploadCommand(string filename) //changed argument with filename
     try
     {
         Printer::printNormal("\n");
-        _secureConnection->sendFile(readFile, true);
+        _secureConnection->sendFile(readFile, true, nonce);
     }
     catch (const NetworkException &ne)
     {
@@ -79,9 +115,11 @@ void uploadCommand(string filename) //changed argument with filename
 
 void retriveListCommand()
 {
+    unsigned long nonce;
+
     try
     {
-        sendRetriveListCommand();
+        nonce = sendRetriveListCommand();
     }
     catch (const NetworkException &e)
     {
@@ -92,7 +130,7 @@ void retriveListCommand()
     try
     {
         Printer::printNormal("\n");
-        _secureConnection->reciveAndPrintBigMessage();
+        _secureConnection->reciveAndPrintBigMessage(nonce);
     }
     catch (const FileSizeException &fse){
 		Printer::printError(fse.what());
@@ -105,6 +143,8 @@ void retriveListCommand()
 
 void retriveFileCommand(string filename)
 {
+    unsigned long nonce;
+
     try
     {
         Sanitizator::checkFilename(filename.c_str());
@@ -117,7 +157,7 @@ void retriveFileCommand(string filename)
 
     try
     {
-        sendRetriveFileCommand(filename);
+        nonce = sendRetriveFileCommand(filename);
     }
     catch (const NetworkException &e)
     {
@@ -132,7 +172,7 @@ void retriveFileCommand(string filename)
     try
     {
         Printer::printNormal("\n");
-        _secureConnection->receiveFile(tmpFile.c_str(), true);
+        _secureConnection->receiveFile(tmpFile.c_str(), true, nonce);
     }
     catch (const FileSizeException &fse){
 		Printer::printError(fse.what());
@@ -247,7 +287,7 @@ int main(int num_args, char *args[])
     size_t pos = 0;
 
     bool exit = false;
-    Printer::printNormal("Insert the command (digit 'help' or 'h' for the command list):");
+    Printer::printNormal("Insert the command (digit 'help' or 'h' for the command list):\n");
     try
     {
         for (;;)

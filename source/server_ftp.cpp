@@ -21,7 +21,7 @@ void disconnectClient()
 	Printer::printInfo((char*)"Client Disconnected");
 }
 
-void uploadCommand(string fileName)
+void uploadCommand(string fileName, unsigned long nonce)
 {
 	try
 	{
@@ -39,7 +39,7 @@ void uploadCommand(string fileName)
 
 	try
 	{
-		_secureConnection->receiveFile(tmpFile.c_str(), true);
+		_secureConnection->receiveFile(tmpFile.c_str(), true, nonce);
 	}
 	catch (const NetworkException &ne)
 	{
@@ -62,7 +62,7 @@ void uploadCommand(string fileName)
 	system(cmd.c_str());
 }
 
-void retriveListCommand()
+void retriveListCommand(unsigned long nonce)
 {
 	Printer::printInfo((char*) "Creating List");
 	system("/bin/ls -sh1 uploadedFiles/ > fileList.txt");
@@ -79,18 +79,13 @@ void retriveListCommand()
 
 	try
 	{
-		_secureConnection->sendFile(readFile, false);
+		_secureConnection->sendFile(readFile, false, nonce);
 	}
 	catch (const NetworkException &ne)
 	{
 		Printer::printError((char*)"A network error has occured sending the file list");
 		disconnectClient();
-	} /*
-	catch (const ErrorOnOtherPartException &eope)
-	{
-		cerr << "[ERROR] Failed to upload a part of the file list (Hash was not valid)" << endl;
-		disconnectClient();
-	}*/
+	}
 	catch (const SecureConnectionException &sce)
 	{
 		Printer::printError(sce.what());
@@ -102,7 +97,7 @@ void retriveListCommand()
 	Printer::printInfo((char*)"FileList sended");
 }
 
-void retriveFileCommand(string fileName)
+void retriveFileCommand(string fileName, unsigned long nonce)
 {
 	try
 	{
@@ -110,7 +105,7 @@ void retriveFileCommand(string fileName)
 	}
 	catch (const exception &e)
 	{
-		cerr << e.what() << endl;
+		Printer::printError(e.what());
 		return;
 	}
 
@@ -120,32 +115,29 @@ void retriveFileCommand(string fileName)
 	readFile.open(pathFileName.c_str(), ios::in | ios::binary);
 	if (!readFile.is_open())
 	{
-		Printer::printWaring((char*)"not possible open the file or the file demanded doesn't exist");
+		Printer::printWaring("not possible open the file or the file demanded doesn't exist");
+
 		// saying to client that file does not exists
 		string strFileSize = to_string((long)-1);
-		_secureConnection->sendSecureMsg((void *)strFileSize.c_str(), strFileSize.length() + 1);
+		_secureConnection->sendSecureMsg((void *)strFileSize.c_str(), strFileSize.length() + 1, true, nonce);
 
 		return;
 	}
 
 	try
 	{
-		_secureConnection->sendFile(readFile, true);
+		_secureConnection->sendFile(readFile, true, nonce);
 	}
 	catch (const NetworkException &ne)
 	{
-		Printer::printError((char*)"A network error has occured sendig the file");
+		Printer::printError("A network error has occured sendig the file");
 		disconnectClient();
 	}
 	catch (const ErrorOnOtherPartException &eope)
 	{
-		Printer::printErrorWithReason((char*)"Failed to upload a part of the file", (char*)"Hash not valid");
+		Printer::printErrorWithReason("Failed to upload a part of the file", "Hash not valid");
 		disconnectClient();
 	}
-	//catch (const FileTooMuchBigException &ftmbe)
-	//{
-	//	  Printer::printError(ftmbe.what());
-	//}
 
 	readFile.close();
 }
@@ -156,7 +148,7 @@ stringstream receiveCommad()
 	char *command;
 	int bytesRecived;
 
-	bytesRecived = _secureConnection->recvSecureMsg((void **)&command);
+	bytesRecived = _secureConnection->recvSecureMsg((void **)&command, false, 0);
 
 	res << command;
 
@@ -194,19 +186,41 @@ void manageConnection()
 	mess<<"\n[COMMAND] '"<<command<<"'";
 	Printer::printMsg(mess.str().c_str());
 
+	unsigned long nonce = _secureConnection->generateNonce();
+
 	if (command == "u")
 	{
-		commandStream >> filename;
-		uploadCommand(filename);
+		_secureConnection->sendSecureMsg((void*) &nonce, sizeof(unsigned long), false, 0);
+
+		char* filenameBuf;
+		_secureConnection->recvSecureMsg((void**) &filenameBuf, true, nonce);
+		filename = string(filenameBuf);
+
+		delete filenameBuf;
+
+		uploadCommand(filename, nonce);
 	}
 	if (command == "rl")
 	{
-		retriveListCommand();
+		_secureConnection->sendSecureMsg((void*) &nonce, sizeof(unsigned long), false, 0);
+
+		unsigned char* grb;
+		_secureConnection->recvSecureMsg((void**) &grb, true, nonce);
+		delete grb;
+
+		retriveListCommand(nonce);
 	}
 	if (command == "rf")
 	{
-		commandStream >> filename;
-		retriveFileCommand(filename);
+		_secureConnection->sendSecureMsg((void*) &nonce, sizeof(unsigned long), false, 0);
+
+		char* filenameBuf;
+		_secureConnection->recvSecureMsg((void**) &filenameBuf, true, nonce);
+		filename = string(filenameBuf);
+
+		delete filenameBuf;
+		
+		retriveFileCommand(filename, nonce);
 	}
 }
 

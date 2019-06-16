@@ -1,4 +1,19 @@
 #include <openssl/bn.h>
+#include <exception>
+
+class SecureMessageCreatorException : public std::exception
+{
+    public:
+    virtual const char *what() const throw() = 0;
+};
+class EncryptInitException : public SecureMessageCreatorException
+{
+    public:
+    const char *what() const throw()
+    {
+        return "Not possible initialize encryption context";
+    }
+};
 
 class SecureMessageCreator {
   private:
@@ -12,10 +27,12 @@ class SecureMessageCreator {
 
     int _hashSize; // Algoritm+h used Sha-256
 
-    unsigned char* hash(unsigned char *inBuf, int inLen);
-    int encrypt(unsigned char* plainText, int plainTextLen, unsigned char* iv, unsigned char* chiperText);
-    int decrypt(unsigned char* cipherText, int cipherTextLen, unsigned char* iv, unsigned char* decryptedText);
-    bool check_hash(unsigned char *inBuf, int bufLen, unsigned char *hash);
+    EVP_CIPHER_CTX *context;
+    HMAC_CTX *mdctx;
+
+    unsigned char* hash(unsigned char *inBuf, int inLen, bool useNonce, unsigned long nonce);
+    
+    bool check_hash(unsigned char *inBuf, int bufLen, unsigned char *hash, bool useNonce, unsigned long nonce);
     bool simpleHash256(unsigned char* input,size_t inputLenght, unsigned char* &output);
 
   public:
@@ -23,8 +40,22 @@ class SecureMessageCreator {
     bool derivateKeys(unsigned char* inizializationKey, size_t ikSize);
     void destroyKeysIfSetted();
 
-    int EncryptAndSignMessage(unsigned char* plainText, int plainTextLen, unsigned char** secureText);
-    bool DecryptAndCheckSign(unsigned char* secureText, int secureTextLen, unsigned char** plainText, int &plainTextLen);
+    unsigned long getNonce();
+
+    void initEncryptContext(unsigned char* iv);
+    int updateEncrypt(unsigned char* plainText, int plainTextLen, unsigned char* chiperText);
+    int finalAndFreeEncryptContext(unsigned char* chiperText, int &chiperTextLen);
+
+    void initDecryptContext(unsigned char* iv);
+    int updateDecrypt(unsigned char* cipherText, int cipherTextLen, unsigned char* decryptedText);
+    int finalAndFreeDecryptContext(unsigned char* chiperText, int &chiperTextLen);
+    
+
+    int EncryptAndSignMessageUpdate(unsigned char* plainText, int plainTextLen, unsigned char** secureText, bool useNonce, unsigned long nonce);
+    bool DecryptAndCheckSignUpdate(unsigned char* secureText, int secureTextLen, unsigned char** plainText, int &plainTextLen, bool useNonce, unsigned long nonce);
+
+    int EncryptAndSignMessageFinal(unsigned char* plainText, int plainTextLen, unsigned char** secureText, bool useNonce, unsigned long nonce);
+    bool DecryptAndCheckSignFinal(unsigned char* secureText, int secureTextLen, unsigned char** plainText, int &plainTextLen, bool useNonce, unsigned long nonce);
     
     EVP_PKEY* ExtractPublicKeyFromFile(const char* filename);
     EVP_PKEY* ExtractPrivateKey(const char* filename);

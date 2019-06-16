@@ -5,7 +5,7 @@
 #include <sstream>
 #include <unistd.h>
 #include <string.h>
-#include <openssl/rand.h>
+
 
 using namespace std;
 
@@ -26,6 +26,10 @@ SecureConnection::SecureConnection(IClientServerTCP *csTCP)
     }else{
         _certVal->addCertificationAut(caCert);
     }
+}
+unsigned long SecureConnection::generateNonce()
+{
+    return _sMsgCreator->getNonce();
 }
 
 void SecureConnection::destroyKeys(){
@@ -113,22 +117,25 @@ int SecureConnection::rcvCertificate(X509* &cert)
     return size;
 }
 
-void SecureConnection::sendSecureMsg(void *buffer, size_t bufferSize)
+void SecureConnection::sendSecureMsg(void *buffer, size_t bufferSize, bool useNonce, unsigned long nonce)
 {
     unsigned char *secureMessage;
-    size_t msgSize = _sMsgCreator->EncryptAndSignMessage((unsigned char *)buffer, bufferSize, &secureMessage);
+    _sMsgCreator->initEncryptContext(NULL);
+    size_t msgSize = _sMsgCreator->EncryptAndSignMessageFinal((unsigned char *)buffer, bufferSize, &secureMessage, useNonce, nonce);
     _csTCP->sendMsg(secureMessage, msgSize);
     delete secureMessage;
 }
 
-int SecureConnection::recvSecureMsg(void **plainText)
+int SecureConnection::recvSecureMsg(void **plainText, bool useNonce, unsigned long nonce)
 {
     int numberOfBytes;
     unsigned char *encryptedText;
     numberOfBytes = _csTCP->recvMsg((void **)&encryptedText);
 
+    _sMsgCreator->initDecryptContext(NULL);
+
     int plainTextSize;
-    bool check = _sMsgCreator->DecryptAndCheckSign(encryptedText, numberOfBytes, (unsigned char **)plainText, plainTextSize);
+    bool check = _sMsgCreator->DecryptAndCheckSignFinal(encryptedText, numberOfBytes, (unsigned char **)plainText, plainTextSize, useNonce, nonce);
 
     delete encryptedText;
 
@@ -181,7 +188,7 @@ void SecureConnection::sendAutenticationAndFreshness(unsigned char* expectedMsg,
     int signatureLen;
 
     signatureLen = _sMsgCreator->sign(expectedMsg, msgLen, privKey, signature);
-    sendSecureMsg(signature, signatureLen);
+    sendSecureMsg(signature, signatureLen, false, 0);
 
     int ret = sendCertificate(cert);
     
@@ -196,7 +203,7 @@ bool SecureConnection::recvAutenticationAndVerify(unsigned char* expectedMsg, in
     X509* cert;
     int certSize;
 
-    signatureLen = recvSecureMsg((void**)&signature);
+    signatureLen = recvSecureMsg((void**)&signature, false, 0);
 
     certSize = rcvCertificate(cert);
 
@@ -270,7 +277,7 @@ void SecureConnection::establishConnectionServer()
         throw InvalidDigitalSignException();
     }
 
-    sendSecureMsg((void*)"ok",3); // for Atu verification
+    sendSecureMsg((void*)"ok",3, false, 0); // for Atu verification
 } 
 
 void SecureConnection::establishConnectionClient()
@@ -333,12 +340,12 @@ void SecureConnection::establishConnectionClient()
 
     // for Atu verification //////////////////////////////////////////
     unsigned char* checkConnectionEnstablished;
-    int checkSize = recvSecureMsg((void**) &checkConnectionEnstablished);
+    int checkSize = recvSecureMsg((void**) &checkConnectionEnstablished, false, 0);
     delete checkConnectionEnstablished;
     //////////////////////////////////////////////////////////////////
 } 
 
-int SecureConnection::sendFile(ifstream &file, bool stars)
+int SecureConnection::sendFile(ifstream &file, bool stars, unsigned long nonce)
 {
     if (!file.is_open())
     {
@@ -356,11 +363,11 @@ int SecureConnection::sendFile(ifstream &file, bool stars)
 
     if(fileSize > MAX_FILE_SIZE)
     {
-    	sendSecureMsg((void *)"-2", 3);
+    	sendSecureMsg((void *)"-2", 3, true, nonce);
         throw FileSizeException();
     }
 
-    sendSecureMsg((void *)strFileSize.c_str(), strFileSize.length());
+    sendSecureMsg((void *)strFileSize.c_str(), strFileSize.length(), true, nonce);
 
     size_t fileSended = 0;
 
@@ -381,25 +388,24 @@ int SecureConnection::sendFile(ifstream &file, bool stars)
         file.read(buffer, BUFF_SIZE);
         size_t readedBytes = file.gcount();
 
-        sendSecureMsg(buffer, readedBytes);
+        sendSecureMsg(buffer, readedBytes, true, nonce);
 
         fileSended += readedBytes;
         if (stars)
             Printer::printLoadBar(fileSended, fileSize,false);
     }
-    
 
     return fileSended;
 }
 
-int SecureConnection::receiveFile(const char *filename, bool stars)
+int SecureConnection::receiveFile(const char *filename, bool stars, unsigned long nonce)
 {
     ofstream writeFile;
 
     char *writer;
     int lenght;
 
-    lenght = recvSecureMsg((void **)&writer);
+    lenght = recvSecureMsg((void **)&writer, true, nonce);
 
     long fileSize;
     stringstream ss;
@@ -434,7 +440,7 @@ int SecureConnection::receiveFile(const char *filename, bool stars)
     size_t writedBytes;
     for (writedBytes = 0; writedBytes < fileSize; writedBytes += lenght)
     {
-        lenght = recvSecureMsg((void **)&writer);        
+        lenght = recvSecureMsg((void **)&writer, true, nonce);        
 
         //the following code prints * characters
         if (stars)
@@ -449,13 +455,13 @@ int SecureConnection::receiveFile(const char *filename, bool stars)
     return writedBytes;
 }
 
-int SecureConnection::reciveAndPrintBigMessage()
+int SecureConnection::reciveAndPrintBigMessage(unsigned long nonce)
 {
     char *writer;
     char *ack;
     int lenght;
     
-    lenght = recvSecureMsg((void **)&writer);
+    lenght = recvSecureMsg((void **)&writer, true, nonce);
 
     size_t fileSize;
     stringstream ss;
@@ -470,9 +476,12 @@ int SecureConnection::reciveAndPrintBigMessage()
     size_t writedBytes;
     for (writedBytes = 0; writedBytes < fileSize; writedBytes += lenght)
     {
-        lenght = recvSecureMsg((void **)&writer);
-        
-        Printer::printNormal(writer);
+        lenght = recvSecureMsg((void **)&writer, true, nonce);
+        unsigned char* writer2 = new unsigned char[lenght+1];
+
+        memcpy(writer2,writer,lenght);
+        writer2[lenght] = '\0';
+        Printer::printNormal((char*)writer2);
         delete writer;
     }
     
