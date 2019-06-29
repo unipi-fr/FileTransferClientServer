@@ -302,7 +302,7 @@ bool SecureMessageCreator::DecryptAndCheckSignUpdate(unsigned char *secureText, 
 {
   //cout<<"[SecureText]"<<secureText<<endl;
 
-  unsigned char *decryptedText = new unsigned char[secureTextLen];
+  unsigned char *decryptedText = new unsigned char[secureTextLen + 16];
   int decryptLen = updateDecrypt(secureText, secureTextLen, decryptedText);
   //cout<<"[dectyptedText]"<<decryptedText<<endl;
 

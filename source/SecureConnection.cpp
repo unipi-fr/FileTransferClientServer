@@ -382,15 +382,28 @@ int SecureConnection::sendFile(ifstream &file, bool stars, unsigned long nonce)
     string mess = "fileSize = " + strFileSize;
     Printer::printInfo(mess.c_str());
 
-    nonce += 1; 
+    unsigned char* secureMessage;
+    int messageLen;
+
+    _sMsgCreator->initEncryptContext(NULL);
+    //nonce += 1; 
     while (!file.eof() && fileSended < fileSize)
     {
         memset(buffer, 0, BUFF_SIZE);
         file.read(buffer, BUFF_SIZE);
         size_t readedBytes = file.gcount();
 
-        sendSecureMsg(buffer, readedBytes, true, nonce);
-        nonce += 1;
+        //sendSecureMsg(buffer, readedBytes, true, nonce);
+        //nonce += 1;
+
+        if(fileSended +  readedBytes < fileSize)
+            messageLen = _sMsgCreator->EncryptAndSignMessageUpdate((unsigned char*)buffer, readedBytes, &secureMessage, true, nonce);
+        else
+            messageLen = _sMsgCreator->EncryptAndSignMessageFinal((unsigned char*)buffer, readedBytes, &secureMessage, true, nonce);
+
+        _csTCP->sendMsg((void*) secureMessage, messageLen);
+        
+        delete secureMessage;
 
         fileSended += readedBytes;
         if (stars)
@@ -440,12 +453,31 @@ int SecureConnection::receiveFile(const char *filename, bool stars, unsigned lon
     size_t partReaded = 0;
 
     size_t writedBytes;
-    nonce += 1;
+    //nonce += 1;
     
+    unsigned char* secureMessage;
+    int messageLen;
+
+    _sMsgCreator->initDecryptContext(NULL);
+
     for (writedBytes = 0; writedBytes < fileSize; writedBytes += lenght)
     {
-        lenght = recvSecureMsg((void **)&writer, true, nonce); 
-        nonce += 1;       
+        //lenght = recvSecureMsg((void **)&writer, true, nonce);
+
+        messageLen = _csTCP->recvMsg((void **)&secureMessage);
+
+        bool result;
+
+        if(writedBytes +  BUFF_SIZE < fileSize)
+            result = _sMsgCreator->DecryptAndCheckSignUpdate(secureMessage, messageLen, (unsigned char**)&writer, lenght, true, nonce);
+        else
+            result = _sMsgCreator->DecryptAndCheckSignFinal(secureMessage, messageLen, (unsigned char**)&writer, lenght, true, nonce);
+
+        //nonce += 1; 
+        if (!result)
+        {
+            throw HashNotValidException();
+        }      
 
         //the following code prints * characters
         if (stars)
@@ -453,6 +485,7 @@ int SecureConnection::receiveFile(const char *filename, bool stars, unsigned lon
 
         writeFile.write(writer, lenght);
         delete writer;
+        delete secureMessage;
     }
 
     writeFile.close();
@@ -479,11 +512,12 @@ int SecureConnection::reciveAndPrintBigMessage(unsigned long nonce)
     }
     
     size_t writedBytes;
-    nonce += 1;
+    //nonce += 1;
+
     for (writedBytes = 0; writedBytes < fileSize; writedBytes += lenght)
     {
         lenght = recvSecureMsg((void **)&writer, true, nonce);
-        nonce += 1;
+        //nonce += 1;
         unsigned char* writer2 = new unsigned char[lenght+1];
 
         memcpy(writer2,writer,lenght);
