@@ -382,6 +382,7 @@ int SecureConnection::sendFile(ifstream &file, bool stars, unsigned long nonce)
     string mess = "fileSize = " + strFileSize;
     Printer::printInfo(mess.c_str());
 
+    nonce += 1; 
     while (!file.eof() && fileSended < fileSize)
     {
         memset(buffer, 0, BUFF_SIZE);
@@ -389,6 +390,7 @@ int SecureConnection::sendFile(ifstream &file, bool stars, unsigned long nonce)
         size_t readedBytes = file.gcount();
 
         sendSecureMsg(buffer, readedBytes, true, nonce);
+        nonce += 1;
 
         fileSended += readedBytes;
         if (stars)
@@ -438,9 +440,12 @@ int SecureConnection::receiveFile(const char *filename, bool stars, unsigned lon
     size_t partReaded = 0;
 
     size_t writedBytes;
+    nonce += 1;
+    
     for (writedBytes = 0; writedBytes < fileSize; writedBytes += lenght)
     {
-        lenght = recvSecureMsg((void **)&writer, true, nonce);        
+        lenght = recvSecureMsg((void **)&writer, true, nonce); 
+        nonce += 1;       
 
         //the following code prints * characters
         if (stars)
@@ -474,9 +479,11 @@ int SecureConnection::reciveAndPrintBigMessage(unsigned long nonce)
     }
     
     size_t writedBytes;
+    nonce += 1;
     for (writedBytes = 0; writedBytes < fileSize; writedBytes += lenght)
     {
         lenght = recvSecureMsg((void **)&writer, true, nonce);
+        nonce += 1;
         unsigned char* writer2 = new unsigned char[lenght+1];
 
         memcpy(writer2,writer,lenght);
