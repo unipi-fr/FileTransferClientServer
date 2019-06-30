@@ -13,15 +13,20 @@ ClientTCP *_client;
 
 unsigned long sendUploadCommand(string file)
 {
+    unsigned long nonceServer;
+    unsigned long nonceClient = _secureConnection->generateNonce();
     unsigned long nonce;
     unsigned char* nonceBuf;
-
-    string msg = "u";
+    stringstream ss;
+    ss << "u "<<nonceClient;
+    string msg = ss.str();
     _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length() + 1, false, 0);
 
-    _secureConnection->recvSecureMsg((void **) &nonceBuf, false, 0);
-    memcpy(&nonce, nonceBuf, sizeof(unsigned long));
+    _secureConnection->recvSecureMsg((void **) &nonceBuf, true, nonceClient);
+    memcpy(&nonceServer, nonceBuf, sizeof(unsigned long));
     delete nonceBuf;
+
+    nonce = nonceServer + nonceClient;
 
     _secureConnection->sendSecureMsg((void *)file.c_str(), file.length() + 1, true, nonce);
     
@@ -31,14 +36,18 @@ unsigned long sendUploadCommand(string file)
 unsigned long sendRetriveListCommand()
 {
     unsigned long nonce;
+    unsigned long nonceServer;
+    unsigned long nonceClient = _secureConnection->generateNonce();
     unsigned char* nonceBuf;
-    
-    string msg = "rl";
+    stringstream ss;
+    ss << "rl "<<nonceClient;
+    string msg = ss.str();
     _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length() + 1, false, 0);
 
-    _secureConnection->recvSecureMsg((void **) &nonceBuf, false, 0);
-    memcpy(&nonce, nonceBuf, sizeof(unsigned long));
+    _secureConnection->recvSecureMsg((void **) &nonceBuf, true, nonceClient);
+    memcpy(&nonceServer, nonceBuf, sizeof(unsigned long));
     delete nonceBuf;
+    nonce = nonceServer + nonceClient;
 
     _secureConnection->sendSecureMsg((void*) &nonce, sizeof(unsigned long), true, nonce);
 
@@ -48,15 +57,20 @@ unsigned long sendRetriveListCommand()
 unsigned long sendRetriveFileCommand(string file)
 {
     unsigned long nonce;
+    unsigned long nonceServer;
+    unsigned long nonceClient = _secureConnection->generateNonce();
     unsigned char* nonceBuf;
 
-    string msg = "rf ";
+    stringstream ss;
+    ss << "rf "<<nonceClient;
+    string msg = ss.str();
     _secureConnection->sendSecureMsg((void *)msg.c_str(), msg.length() + 1, false, 0);
 
-    _secureConnection->recvSecureMsg((void **) &nonceBuf, false, 0);
-    memcpy(&nonce, nonceBuf, sizeof(unsigned long));
+    _secureConnection->recvSecureMsg((void **) &nonceBuf, true, nonceClient);
+    memcpy(&nonceServer, nonceBuf, sizeof(unsigned long));
     delete nonceBuf;
     
+    nonce = nonceServer + nonceClient;
     _secureConnection->sendSecureMsg((void *)file.c_str(), file.length() + 1, true, nonce);
 
     return nonce;

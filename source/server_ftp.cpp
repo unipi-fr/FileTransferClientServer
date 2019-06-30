@@ -186,11 +186,15 @@ void manageConnection()
 	mess<<"\n[COMMAND] '"<<command<<"'";
 	Printer::printMsg(mess.str().c_str());
 
-	unsigned long nonce = _secureConnection->generateNonce();
+	unsigned long nonceServer = _secureConnection->generateNonce();
+	unsigned long nonceClient;
+	unsigned long nonce;
+	commandStream>>nonceClient;
 
 	if (command == "u")
 	{
-		_secureConnection->sendSecureMsg((void*) &nonce, sizeof(unsigned long), false, 0);
+		_secureConnection->sendSecureMsg((void*) &nonceServer, sizeof(unsigned long), true, nonceClient);
+		nonce = nonceClient + nonceServer;
 
 		char* filenameBuf;
 		_secureConnection->recvSecureMsg((void**) &filenameBuf, true, nonce);
@@ -202,22 +206,20 @@ void manageConnection()
 	}
 	if (command == "rl")
 	{
-		_secureConnection->sendSecureMsg((void*) &nonce, sizeof(unsigned long), false, 0);
-
+		_secureConnection->sendSecureMsg((void*) &nonceServer, sizeof(unsigned long),  true, nonceClient);
+		nonce = nonceClient + nonceServer;
 		unsigned char* grb;
 		_secureConnection->recvSecureMsg((void**) &grb, true, nonce);
 		delete grb;
-
 		retriveListCommand(nonce);
 	}
 	if (command == "rf")
 	{
-		_secureConnection->sendSecureMsg((void*) &nonce, sizeof(unsigned long), false, 0);
-
+		_secureConnection->sendSecureMsg((void*) &nonceServer, sizeof(unsigned long),  true, nonceClient);
+		nonce = nonceClient + nonceServer;
 		char* filenameBuf;
 		_secureConnection->recvSecureMsg((void**) &filenameBuf, true, nonce);
 		filename = string(filenameBuf);
-
 		delete filenameBuf;
 		
 		retriveFileCommand(filename, nonce);
